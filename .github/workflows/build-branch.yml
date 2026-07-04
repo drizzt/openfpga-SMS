@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Build chip32
         run: scripts/build_chip32.sh
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload package zips
         if: success()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: package-${{ env.PACKAGE_BRANCH }}
           path: openfpga-*_${{ env.PACKAGE_BRANCH }}_${{ env.PACKAGE_VERSION }}.zip
@@ -57,7 +57,7 @@ jobs:
 
       - name: Upload timing report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: timing
           path: timing.txt
@@ -72,7 +72,7 @@ jobs:
 
       - name: Upload reports
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: reports
           path: |
