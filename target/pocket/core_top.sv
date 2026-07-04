@@ -1223,7 +1223,7 @@ wire [15:0] audio_l, audio_r;
 // ce inputs gated by ss_freeze exactly as MiSTer SMS.sv does — pauses the
 // emulated machine during a state save/load; the video instance below and
 // the sdram clkref keep their ungated ce's so timing keeps running.
-system #(.MAX_SPPL(63), .BASE_DIR("../sms/")) system (
+system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .clk_sys    ( clk_sys ),
     .ce_cpu     ( ce_cpu & ~ss_freeze ),
     .ce_vdp     ( ce_vdp & ~ss_freeze ),

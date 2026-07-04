@@ -1,0 +1,68 @@
+name: Sync Upstream
+
+# Vendors new MiSTer-devel/SMS_MiSTer rtl/ changes into rtl/upstream/ via Copybara
+# and opens a pull request (branch vendor/upstream-sync); the port's local edits
+# are re-applied from .github/upstream_patches/. See .github/copy.bara.sky.
+#
+# Requires the CUSTOM_GH_TOKEN secret (a fine-grained PAT scoped to this repo:
+# Contents RW + Pull requests RW). Copybara pushes the PR branch with it so the
+# native pull_request build (upstream-pr.yml) and the pull_request_review release
+# (release-on-approval.yml) fire; a branch pushed with the default GITHUB_TOKEN
+# would not trigger those workflows.
+#
+# First run only: trigger manually and set "last_rev" to 4d36478 (the upstream
+# Release 20260603 this port forked from) to seed Copybara's baseline. Subsequent
+# runs read the last synced revision from the GitOrigin-RevId trailer on master.
+
+on:
+  workflow_dispatch:
+    inputs:
+      last_rev:
+        description: "Seed baseline: upstream commit to sync from (first run only, e.g. 4d36478)"
+        required: false
+        default: ""
+  schedule:
+    # Daily at 00:00 UTC
+    - cron: "0 0 * * *"
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CUSTOM_GH_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "https://x-access-token:${{ secrets.CUSTOM_GH_TOKEN }}@github.com" > /home/runner/.git-credentials
+          git config --global credential.helper store
+
+      - name: Copybara
+        id: copybara
+        env:
+          LAST_REV: ${{ github.event.inputs.last_rev }}
+        run: |
+          # Capture the Copybara exit code; 4 = "no changes to migrate" (success).
+          set +e
+          /usr/bin/docker run \
+            -v "$(pwd)":/usr/src/app \
+            -v /home/runner/.gitconfig:/root/.gitconfig \
+            -v /home/runner/.git-credentials:/root/.git-credentials \
+            ghcr.io/anipos/copybara-docker-image \
+            --ignore-noop \
+            migrate /usr/src/app/.github/copy.bara.sky default \
+            ${LAST_REV:+--last-rev "$LAST_REV"}
+          EXIT_CODE=$?
+          set -e
+          if [ $EXIT_CODE -eq 4 ]; then
+            echo "No upstream changes to migrate."
+            exit 0
+          fi
+          exit $EXIT_CODE

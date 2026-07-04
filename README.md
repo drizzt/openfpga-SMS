@@ -43,7 +43,7 @@ Separate packages are required because the Pocket file browser always
 opens the Assets folder of the data slot's platform index — it does not
 follow the platform the core was launched from. The system mode is
 selected automatically from the cartridge file extension by the Chip32
-loader (`src/chip32/chip32.asm`).
+loader (`target/pocket/chip32/chip32.asm`).
 
 ## Controls
 
@@ -111,6 +111,55 @@ build with 25.1 instead, point `QUARTUS_DIR` at it:
 ./scripts/build.sh                                               # default: 21.1
 QUARTUS_DIR=/opt/intelFPGA_lite/25.1/quartus ./scripts/build.sh  # 25.1
 ```
+
+## Repository Layout
+
+The tree follows the OpenGateware "gateman" layout used by other MiSTer ports
+(for example [agg23/openfpga-NES](https://github.com/agg23/openfpga-NES)):
+
+- `rtl/upstream/` : the MiSTer `SMS_MiSTer` core, kept a faithful mirror of
+  upstream. Do not edit these files directly (see Upstream Sync below).
+- `rtl/sms.qip` : selects the subset of `rtl/upstream/` that is compiled.
+- `platform/pocket/` : Analogue Pocket APF framework.
+- `target/pocket/` : the Pocket integration (top level, clocking, video, audio,
+  data loaders, Chip32 loader).
+- `projects/` : the Quartus project (`sms_pocket.qpf`, revision `ap_core`).
+- `pkg/` : the packaged openFPGA cores/assets/platforms.
+
+## Upstream Sync
+
+New MiSTer `SMS_MiSTer` releases are pulled in automatically as a reviewed pull
+request. A daily [Copybara](https://github.com/google/copybara) job
+(`.github/workflows/upstream.yml`, config `.github/copy.bara.sky`) copies the
+upstream `rtl/` into `rtl/upstream/`, re-applies the port's local edits from
+`.github/upstream_patches/`, and opens (or updates) the `vendor/upstream-sync`
+PR.
+
+That PR is built and timing-gated by `.github/workflows/upstream-pr.yml`: it
+compiles the bitstream and runs static timing analysis. If **any** path has
+negative slack, the timing report is posted as a PR comment and the check fails
+(red), so a timing-broken sync cannot be approved.
+
+Approving the PR triggers `.github/workflows/release-on-approval.yml`, which
+merges it into `master` and cuts a release automatically: version bump, compile,
+tag, GitHub release and the three per-platform zips. The bump is a **patch** by
+default; add a `release:minor` or `release:major` label to the PR before
+approving to override.
+
+Because upstream is re-mirrored on every sync, any local change to a
+`rtl/upstream/` file must be expressed as a patch under
+`.github/upstream_patches/` (currently only `system.patch`, the OSD legacy
+palette override) rather than edited in place. If upstream ever changes the same
+lines a patch touches, the sync fails and the patch must be refreshed.
+
+The sync needs one repository secret, `CUSTOM_GH_TOKEN`: a fine-grained Personal
+Access Token scoped to this repo with **Contents: Read and write** and **Pull
+requests: Read and write**. Copybara pushes the PR branch with it so the
+`pull_request` build and `pull_request_review` release workflows fire (a branch
+pushed with the default `GITHUB_TOKEN` would not trigger them).
+
+The first run must be triggered manually with the `last_rev` input set to the
+upstream commit this port forked from, to seed Copybara's baseline.
 
 ## Credits
 

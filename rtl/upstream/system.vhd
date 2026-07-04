@@ -769,7 +769,7 @@ port map(
 	boot_rom_inst : entity work.sprom
 	generic map
 	(
-		init_file=> BASE_DIR & "rtl/mboot.mif",
+		init_file=> BASE_DIR & "mboot.mif",
 		widthad_a=> 14
 	)
 	port map

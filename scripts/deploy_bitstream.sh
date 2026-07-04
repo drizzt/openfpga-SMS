@@ -7,7 +7,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-RBF="${1:-$PROJECT_DIR/src/fpga/build/output_files/ap_core.rbf}"
+RBF="${1:-$PROJECT_DIR/projects/output_files/ap_core.rbf}"
 RBF_R="$PROJECT_DIR/build_output/bitstream.rbf_r"
 
 mkdir -p "$PROJECT_DIR/build_output"

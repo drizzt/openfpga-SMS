@@ -71,7 +71,7 @@ proc generateBuildID_Verilog {} {
 	set buildTime [ clock format [ clock seconds ] -format %H%M%S ]
 		
 	# Create a Verilog file for output
-	set outputFileName "../apf/build_id.v"
+	set outputFileName "../platform/pocket/build_id.v"
 	set outputFile [open $outputFileName "w"]
 	
 	# Output the Verilog source
@@ -129,7 +129,7 @@ proc generateBuildID_MIF {} {
 	set memoryDepth [expr $buildDateNumBytes + $buildTimeNumBytes]
 	
 	# Create a Memory Initialization File for output
-	set outputFileName "../apf/build_id.mif"
+	set outputFileName "../platform/pocket/build_id.mif"
 	set outputFile [open $outputFileName "w"]
 	
 	# Output the MIF header (see: http://quartushelp.altera.com/current/mergedProjects/reference/glossary/def_mif.htm)

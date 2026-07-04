@@ -1,0 +1,67 @@
+# ==============================================================================
+# Copybara: vendor the MiSTer SMS_MiSTer core into rtl/upstream/
+# ==============================================================================
+# Mirrors the agg23/openfpga-NES approach. Upstream rtl/ is copied verbatim into
+# rtl/upstream/; the port's local modifications live as patches under
+# upstream_patches/ and are re-applied on every sync, so rtl/upstream/ stays a
+# faithful mirror and the delta is always explicit.
+#
+# Like agg23/openfpga-NES, this opens a pull request (branch vendor/upstream-sync)
+# rather than pushing to master. The PR runs a native build + timing check
+# (upstream-pr.yml); approving it auto-merges and cuts a release
+# (release-on-approval.yml). The PR branch is pushed with a PAT (CUSTOM_GH_TOKEN)
+# so those downstream workflows fire (a GITHUB_TOKEN push would not trigger them).
+# ==============================================================================
+
+upstream_url = "https://github.com/MiSTer-devel/SMS_MiSTer.git"
+downstream_url = "https://github.com/drizzt/openfpga-SMS.git"
+
+core.workflow(
+    name = "default",
+
+    # ORIGIN: upstream MiSTer SMS core
+    origin = git.origin(
+        url = upstream_url,
+        ref = "master",
+    ),
+
+    # DESTINATION: open/update a PR against this repo's master
+    destination = git.github_pr_destination(
+        url = downstream_url,
+        destination_ref = "master",
+        pr_branch = "vendor/upstream-sync",
+        title = "Sync upstream SMS_MiSTer",
+        body = "Automated Copybara sync of MiSTer-devel/SMS_MiSTer rtl/ into rtl/upstream/.\n\n" +
+               "The port's local edits are re-applied from .github/upstream_patches/. " +
+               "Approve to auto-merge and cut a release (patch by default; add a " +
+               "release:minor / release:major label to override).",
+        integrates = [],
+    ),
+
+    # 1:1 commit per upstream commit, preserving upstream history/granularity
+    mode = "ITERATIVE",
+
+    # Preserve upstream authorship
+    authoring = authoring.pass_thru("Copybara <copybara@example.com>"),
+
+    # Only the upstream rtl/ tree is vendored
+    origin_files = glob(["rtl/**"]),
+
+    # The destination footprint Copybara owns. Files under rtl/upstream/ that are
+    # absent from upstream get deleted here (keeps the mirror exact); everything
+    # outside this glob (rtl/sms.qip, platform/, target/, projects/, ...) is never
+    # touched.
+    destination_files = glob(["rtl/upstream/**"]),
+
+    transformations = [
+        # upstream rtl/foo -> rtl/upstream/foo
+        core.move("rtl", "rtl/upstream"),
+        # Re-apply the port's local edits. Copybara keeps a single source of
+        # truth, so downstream changes to upstream files must be expressed as
+        # patches here (it also won't traverse "../", hence the flat path).
+        patch.apply(patches = [
+            "upstream_patches/system.patch",
+        ]),
+        metadata.add_header("[UPSTREAM] ", ignore_label_not_found = True, new_line = False),
+    ],
+)

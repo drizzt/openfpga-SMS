@@ -1,0 +1,69 @@
+# ==============================================================================
+# SMS core file list (selects the compiled subset of the vendored upstream tree)
+# ==============================================================================
+# Paths are relative to this .qip via $::quartus(qip_path); the full pristine
+# MiSTer SMS_MiSTer rtl/ lives under upstream/ (Copybara-managed). Only the files
+# listed here are compiled; MiSTer-platform-only files present under upstream/
+# (keyboard.sv, lightgun.sv, compressor.sv, savestate_ui.sv, hybrid_pwm_sd.v,
+# pll/, pll.v, ...) are intentionally omitted.
+# ==============================================================================
+
+# T80 Z80 CPU
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/T80/T80s.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/T80/T80pa.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/T80/T80_Reg.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/T80/T80_MCode.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/T80/T80_ALU.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/T80/T80.vhd"]
+
+# VM2413 OPLL FM
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/attacktable.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/controller.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/envelopegenerator.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/envelopememory.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/feedbackmemory.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/lineartable.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/operator.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/outputgenerator.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/outputmemory.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/phasegenerator.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/phasememory.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/registermemory.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/sinetable.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/slotcounter.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/temporalmixer.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/voicememory.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/voicerom.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/vm2413.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/VM2413/opll.vhd"]
+
+# jt89 PSG
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/jt89/jt89.vhd"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/jt89/jt89.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/jt89/jt89_noise.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/jt89/jt89_vol.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/jt89/jt89_mixer.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/jt89/jt89_tone.v"]
+
+# misc
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/MC8123.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/SEGASYS1_PRGDEC.v"]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) "upstream/parts.v"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "upstream/sdram.sv"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "upstream/cheatcodes.sv"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "upstream/savestates.sv"]
+
+# VDP / system
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/video.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/sprom.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/spram.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/dpram.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/vdp_sprites.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/vdp_sprite_shifter.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/vdp_main.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/vdp_cram.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/vdp_background.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/vdp.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/system.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/io.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/AudioMix.vhd"]
