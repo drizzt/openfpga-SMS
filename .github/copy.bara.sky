@@ -11,6 +11,11 @@
 # (upstream-pr.yml); approving it auto-merges and cuts a release
 # (release-on-approval.yml). The PR branch is pushed with a PAT (CUSTOM_GH_TOKEN)
 # so those downstream workflows fire (a GITHUB_TOKEN push would not trigger them).
+#
+# Sync is RELEASE-GATED, not commit-driven: upstream.yml passes the newest upstream
+# commit that touches releases/ (MiSTer's committed .rbf) as the migration target,
+# so unreleased WIP that only touches rtl/ is never pulled in. The origin ref below
+# ("master") is only a fallback; the workflow always overrides it with that target.
 # ==============================================================================
 
 upstream_url = "https://github.com/MiSTer-devel/SMS_MiSTer.git"

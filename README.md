@@ -128,12 +128,17 @@ The tree follows the OpenGateware "gateman" layout used by other MiSTer ports
 
 ## Upstream Sync
 
-New MiSTer `SMS_MiSTer` releases are pulled in automatically as a reviewed pull
-request. A daily [Copybara](https://github.com/google/copybara) job
+New MiSTer `SMS_MiSTer` **releases** are pulled in automatically as a reviewed
+pull request. A daily [Copybara](https://github.com/google/copybara) job
 (`.github/workflows/upstream.yml`, config `.github/copy.bara.sky`) copies the
 upstream `rtl/` into `rtl/upstream/`, re-applies the port's local edits from
 `.github/upstream_patches/`, and opens (or updates) the `vendor/upstream-sync`
 PR.
+
+The sync is release-gated: MiSTer commits a compiled `.rbf` under `releases/`
+when it cuts a release, so the workflow targets the newest upstream commit that
+touches `releases/` and syncs `rtl/` up to that point. Unreleased work-in-progress
+commits that only touch `rtl/` are left alone until they are part of a release.
 
 That PR is built and timing-gated by `.github/workflows/upstream-pr.yml`: it
 compiles the bitstream and runs static timing analysis. If **any** path has

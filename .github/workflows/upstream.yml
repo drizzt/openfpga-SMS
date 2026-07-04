@@ -44,25 +44,47 @@ jobs:
           echo "https://x-access-token:${{ secrets.CUSTOM_GH_TOKEN }}@github.com" > /home/runner/.git-credentials
           git config --global credential.helper store
 
+      - name: Determine latest upstream release
+        id: rel
+        run: |
+          # Only upstream commits that update releases/ (MiSTer's committed .rbf)
+          # count as a release. Sync targets the newest such commit, so unreleased
+          # WIP commits that touch only rtl/ are not pulled in. A blobless clone is
+          # enough to walk history for the pathspec.
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/MiSTer-devel/SMS_MiSTer.git /tmp/upstream
+          TARGET=$(git -C /tmp/upstream log -1 --format=%H HEAD -- releases/)
+          if [ -z "$TARGET" ]; then
+            echo "Could not find any commit touching releases/." >&2
+            exit 1
+          fi
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "Latest upstream release commit: $TARGET"
+
       - name: Copybara
         id: copybara
         env:
           LAST_REV: ${{ github.event.inputs.last_rev }}
+          TARGET: ${{ steps.rel.outputs.target }}
         run: |
           # Capture the Copybara exit code; 4 = "no changes to migrate" (success).
+          # TARGET (a releases/-bearing commit) is the source_ref, so migration
+          # never advances past the latest release.
           set +e
           /usr/bin/docker run \
             -v "$(pwd)":/usr/src/app \
             -v /home/runner/.gitconfig:/root/.gitconfig \
             -v /home/runner/.git-credentials:/root/.git-credentials \
+            -e TARGET \
+            -e LAST_REV \
             ghcr.io/anipos/copybara-docker-image \
             --ignore-noop \
-            migrate /usr/src/app/.github/copy.bara.sky default \
+            migrate /usr/src/app/.github/copy.bara.sky default "$TARGET" \
             ${LAST_REV:+--last-rev "$LAST_REV"}
           EXIT_CODE=$?
           set -e
           if [ $EXIT_CODE -eq 4 ]; then
-            echo "No upstream changes to migrate."
+            echo "No new upstream release to migrate."
             exit 0
           fi
           exit $EXIT_CODE
