@@ -79,6 +79,7 @@ jobs:
             -e LAST_REV \
             ghcr.io/anipos/copybara-docker-image \
             --ignore-noop \
+            --github-destination-pr-branch vendor/upstream-sync \
             migrate /usr/src/app/.github/copy.bara.sky default "$TARGET" \
             ${LAST_REV:+--last-rev "$LAST_REV"}
           EXIT_CODE=$?
