@@ -36,6 +36,26 @@ jobs:
       - name: Compile
         run: docker run --rm -v ${{ github.workspace }}:/build -w /build raetro/quartus:21.1 quartus_sh -t generate.tcl
 
+      - name: Reverse bitstream
+        run: scripts/deploy_bitstream.sh
+
+      - name: Package test zips
+        id: pkg
+        run: |
+          set -- pkg/Cores/*/core.json
+          VERSION=$(jq -r '.core.metadata.version' "$1")
+          INFIX="pr${{ github.event.pull_request.number }}"
+          scripts/package_release.sh "$VERSION" "$INFIX"
+          echo "infix=${INFIX}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload test zips
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ steps.pkg.outputs.infix }}
+          path: openfpga-*_${{ steps.pkg.outputs.infix }}_${{ steps.pkg.outputs.version }}.zip
+
       - name: Extract timing closure failures
         if: always()
         run: scripts/extract_timing_failures.sh projects/output_files/ap_core.sta.summary timing.txt
