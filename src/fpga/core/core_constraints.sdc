@@ -73,6 +73,22 @@ set_multicycle_path -setup -from [get_clocks {sdram_clk}] \
 set_multicycle_path -hold -from [get_clocks {sdram_clk}] \
   -to [get_clocks {ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[0].output_counter|divclk}] 1
 
+# Multicycle path for PLL reconfiguration DPRIO writes:
+# On a NTSC/PAL switch the reconfig core streams the new fractional-K word into
+# the sys_pll over many clk_74a cycles via the DPRIO (avmm_dprio_writedata)
+# interface, with the write data held stable and the PLL gated by WAIT_FOR_LOCK.
+# The single-cycle 13.5 ns launch->capture relationship STA assumes therefore
+# never happens: the reconfig sequence is microseconds long and config-time only
+# (no gameplay path). Relax setup to the 2nd edge, exactly like the SDRAM capture
+# above. Scoped -from the reconfig core -to the sys_pll, so it covers ONLY the
+# reconfig writes and never the PLL clock outputs.
+set_multicycle_path -setup -end 2 \
+  -from [get_registers {*altera_pll_reconfig_core*}] \
+  -to   [get_registers {*mf_pllbase_inst*}]
+set_multicycle_path -hold -end 1 \
+  -from [get_registers {*altera_pll_reconfig_core*}] \
+  -to   [get_registers {*mf_pllbase_inst*}]
+
 # Non-SDRAM top-level I/O timing coverage:
 # These APF/platform interfaces are not signed off with external setup/hold
 # delays here. They are either protocol/wait-state timed, source-synchronous
