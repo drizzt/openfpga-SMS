@@ -66,6 +66,7 @@ core.workflow(
         # patches here (it also won't traverse "../", hence the flat path).
         patch.apply(patches = [
             "upstream_patches/system.patch",
+            "upstream_patches/savestates.patch",
         ]),
         metadata.add_header("[UPSTREAM] ", ignore_label_not_found = True, new_line = False),
     ],
