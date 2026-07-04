@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble src/chip32/chip32.asm into pkg/Cores/*/chip32.bin.
+# Assemble target/pocket/chip32/chip32.asm into pkg/Cores/*/chip32.bin.
 #
 # Uses the official bass assembler (ARM9/bass, devel branch) with Analogue's
 # chip32 architecture file (open-fpga/bass-chip32). bass expects the
@@ -25,7 +25,7 @@ if [ ! -x "$BASS_BIN" ]; then
     cp "$BASS_SRC/bass/out/bass" "$BASS_BIN"
 fi
 
-cd "$PROJECT_DIR/src/chip32"
+cd "$PROJECT_DIR/target/pocket/chip32"
 "$BASS_BIN" chip32.asm
 # the per-platform core packages share one chip32 loader
 for d in "$PROJECT_DIR"/pkg/Cores/*/; do

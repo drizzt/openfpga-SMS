@@ -1,0 +1,24 @@
+{
+    "name": "SMS",
+    "displayName": "Sega Master System / Game Gear / SG-1000",
+    "description": "Sega Master System, Game Gear and SG-1000 for the Analogue Pocket. Port of the MiSTer SMS_MiSTer core.",
+    "author": "drizzt",
+    "version": "1.4.0",
+    "license": "GPL-3.0-or-later",
+    "repository": "https://github.com/drizzt/openfpga-SMS",
+    "keywords": [
+        "ecosystem:gateman"
+    ],
+    "scripts": {
+        "build:pocket": "quartus_sh -t generate.tcl"
+    },
+    "platforms": {
+        "pocket": "1.3.0"
+    },
+    "upstream": {
+        "repository": "https://github.com/MiSTer-devel/SMS_MiSTer",
+        "vendored": "rtl/upstream",
+        "sync": ".github/copy.bara.sky"
+    },
+    "modules": {}
+}

@@ -1,8 +1,12 @@
 name: Build
 
 on:
+  workflow_dispatch:   # manual branch build
   push:
-    branches: ['**']
+    branches:
+      - '**'
+      # The Copybara sync PR is built + timing-gated by upstream-pr.yml instead.
+      - '!vendor/upstream-sync'
     paths-ignore:
       - '**.md'
       - 'LICENSE'
@@ -49,7 +53,7 @@ jobs:
 
       - name: Extract timing closure failures
         if: always()
-        run: scripts/extract_timing_failures.sh src/fpga/build/output_files/ap_core.sta.summary timing.txt
+        run: scripts/extract_timing_failures.sh projects/output_files/ap_core.sta.summary timing.txt
 
       - name: Upload timing report
         if: always()
@@ -64,7 +68,7 @@ jobs:
           echo "=== Custom STA reports ==="
           ls -la build_output/reports/ 2>/dev/null || echo "No custom STA reports directory found"
           echo "=== Output files ==="
-          ls -la src/fpga/build/output_files/*.rpt src/fpga/build/output_files/*.summary 2>/dev/null || true
+          ls -la projects/output_files/*.rpt projects/output_files/*.summary 2>/dev/null || true
 
       - name: Upload reports
         if: always()
@@ -72,9 +76,9 @@ jobs:
         with:
           name: reports
           path: |
-            src/fpga/build/output_files/ap_core.fit.summary
-            src/fpga/build/output_files/ap_core.fit.rpt
-            src/fpga/build/output_files/ap_core.sta.summary
-            src/fpga/build/output_files/ap_core.sta.rpt
-            src/fpga/build/output_files/ap_core.flow.rpt
+            projects/output_files/ap_core.fit.summary
+            projects/output_files/ap_core.fit.rpt
+            projects/output_files/ap_core.sta.summary
+            projects/output_files/ap_core.sta.rpt
+            projects/output_files/ap_core.flow.rpt
             build_output/reports/

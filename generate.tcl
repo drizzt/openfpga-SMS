@@ -8,9 +8,9 @@ set base_dir [pwd]
 # kept at 21.1 so both 21.1 and 25.1 build from one tree; snapshot them before the
 # flow and restore byte-for-byte after, so a 25.1 build never dirties git.
 set guarded_files {
-    src/fpga/build/sms_pocket.qpf
-    src/fpga/build/ap_core.qpf
-    src/fpga/build/ap_core.qsf
+    projects/sms_pocket.qpf
+    projects/ap_core.qpf
+    projects/ap_core.qsf
 }
 set snap_dir build_output/.proj_snapshot
 file mkdir $snap_dir
@@ -32,7 +32,7 @@ foreach f $guarded_files {
 # exists for. The status is re-raised at the end so quartus_sh -t still exits
 # non-zero on a real failure (CI must keep failing).
 set build_status [catch {
-    project_open -force -revision ap_core src/fpga/build/sms_pocket.qpf
+    project_open -force -revision ap_core projects/sms_pocket.qpf
     set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
     execute_flow -compile
     project_close

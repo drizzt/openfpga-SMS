@@ -12,8 +12,8 @@ LOCAL_QUARTUS="${QUARTUS_DIR:-/opt/intelFPGA_lite/21.1/quartus}"
 # The reconfig FSM's NTSC K word (core_top.sv) must equal the PLL's power-up
 # fractional division (mf_pllbase_0002.v). Drift is a silent hardware-only
 # symptom: power-up frequency differs from the PAL->NTSC reconfig-restored one.
-ntsc_k_fsm=$(grep -oP "NTSC_FRAC_K = 32'd\K[0-9]+" "$PROJECT_DIR/src/fpga/core/core_top.sv")
-ntsc_k_pll=$(grep -oP 'pll_fractional_division\("\K[0-9]+' "$PROJECT_DIR/src/fpga/core/mf_pllbase/mf_pllbase_0002.v")
+ntsc_k_fsm=$(grep -oP "NTSC_FRAC_K = 32'd\K[0-9]+" "$PROJECT_DIR/target/pocket/core_top.sv")
+ntsc_k_pll=$(grep -oP 'pll_fractional_division\("\K[0-9]+' "$PROJECT_DIR/target/pocket/mf_pllbase/mf_pllbase_0002.v")
 if [ "$ntsc_k_fsm" != "$ntsc_k_pll" ]; then
   echo "ERROR: NTSC fractional-K mismatch:" >&2
   echo "  core_top.sv NTSC_FRAC_K           = $ntsc_k_fsm" >&2
@@ -41,7 +41,7 @@ echo "=== Build complete, reversing bitstream ==="
 
 echo ""
 "$SCRIPT_DIR/print_timing.sh" \
-  "$PROJECT_DIR/src/fpga/build/output_files/ap_core.sta.summary" \
+  "$PROJECT_DIR/projects/output_files/ap_core.sta.summary" \
   "$PROJECT_DIR/build_output/reports/ap_core.sta.clock_summary.rpt"
 
 echo "=== Done! ==="

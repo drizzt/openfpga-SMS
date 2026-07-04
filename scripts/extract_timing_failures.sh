@@ -3,7 +3,7 @@
 # Usage: extract_timing_failures.sh [sta.summary] [output.txt]
 set -euo pipefail
 
-STA="${1:-src/fpga/build/output_files/ap_core.sta.summary}"
+STA="${1:-projects/output_files/ap_core.sta.summary}"
 OUT="${2:-timing.txt}"
 
 : > "$OUT"
