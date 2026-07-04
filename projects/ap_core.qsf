@@ -44,7 +44,7 @@ set_global_assignment -name ORIGINAL_QUARTUS_VERSION 18.1.1
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "21:31:36  JANUARY 22, 2020"
 set_global_assignment -name LAST_QUARTUS_VERSION "21.1.0 Standard Edition"
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
-set_global_assignment -name PRE_FLOW_SCRIPT_FILE "quartus_sh:../apf/build_id_gen.tcl"
+set_global_assignment -name PRE_FLOW_SCRIPT_FILE "quartus_sh:../platform/pocket/build_id_gen.tcl"
 set_global_assignment -name SMART_RECOMPILE ON
 
 # Pin & Location Assignments
@@ -823,91 +823,36 @@ set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 # end ENTITY(mf_pllbase_0002)
 # ---------------------------
 # APF framework (via QIP)
-set_global_assignment -name QIP_FILE ../apf/apf.qip
+set_global_assignment -name QIP_FILE ../platform/pocket/apf.qip
 
 # Core integration
-set_global_assignment -name SYSTEMVERILOG_FILE ../core/core_top.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../core/video_sms.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../core/save_state_controller.sv
-set_global_assignment -name VERILOG_FILE ../core/core_bridge_cmd.v
-set_global_assignment -name SDC_FILE ../core/core_constraints.sdc
-set_global_assignment -name QIP_FILE ../core/mf_pllbase.qip
-set_global_assignment -name QIP_FILE ../core/pll_reconfig.qip
-set_global_assignment -name QIP_FILE ../core/pin_ddio_clk.qip
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/core_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/video_sms.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/save_state_controller.sv
+set_global_assignment -name VERILOG_FILE ../target/pocket/core_bridge_cmd.v
+set_global_assignment -name SDC_FILE ../target/pocket/core_constraints.sdc
+set_global_assignment -name QIP_FILE ../target/pocket/mf_pllbase.qip
+set_global_assignment -name QIP_FILE ../target/pocket/pll_reconfig.qip
+set_global_assignment -name QIP_FILE ../target/pocket/pin_ddio_clk.qip
 
 # Data loaders
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/data_loader.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/data_unloader.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/data_loader.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/data_unloader.sv
 
 # Audio
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/audio_mixer.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/sound_i2s.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/sync_fifo.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/filters/audio_filters.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/filters/dc_blocker.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../pocket/filters/audio_mix.sv
-set_global_assignment -name VERILOG_FILE ../pocket/mf_audio_pll/mf_audio_pll.v
-set_global_assignment -name VERILOG_FILE ../pocket/mf_audio_pll/mf_audio_pll_0002.v
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/audio_mixer.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/sound_i2s.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/sync_fifo.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/filters/audio_filters.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/filters/dc_blocker.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/filters/audio_mix.sv
+set_global_assignment -name VERILOG_FILE ../target/pocket/mf_audio_pll/mf_audio_pll.v
+set_global_assignment -name VERILOG_FILE ../target/pocket/mf_audio_pll/mf_audio_pll_0002.v
 
-# SMS core - T80 Z80 CPU
-set_global_assignment -name VHDL_FILE ../sms/rtl/T80/T80s.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/T80/T80pa.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/T80/T80_Reg.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/T80/T80_MCode.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/T80/T80_ALU.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/T80/T80.vhd
-
-# SMS core - VM2413 OPLL FM
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/attacktable.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/controller.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/envelopegenerator.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/envelopememory.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/feedbackmemory.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/lineartable.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/operator.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/outputgenerator.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/outputmemory.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/phasegenerator.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/phasememory.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/registermemory.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/sinetable.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/slotcounter.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/temporalmixer.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/voicememory.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/voicerom.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/vm2413.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/VM2413/opll.vhd
-
-# SMS core - jt89 PSG
-set_global_assignment -name VHDL_FILE ../sms/rtl/jt89/jt89.vhd
-set_global_assignment -name VERILOG_FILE ../sms/rtl/jt89/jt89.v
-set_global_assignment -name VERILOG_FILE ../sms/rtl/jt89/jt89_noise.v
-set_global_assignment -name VERILOG_FILE ../sms/rtl/jt89/jt89_vol.v
-set_global_assignment -name VERILOG_FILE ../sms/rtl/jt89/jt89_mixer.v
-set_global_assignment -name VERILOG_FILE ../sms/rtl/jt89/jt89_tone.v
-
-# SMS core - misc
-set_global_assignment -name VERILOG_FILE ../sms/rtl/MC8123.v
-set_global_assignment -name VERILOG_FILE ../sms/rtl/SEGASYS1_PRGDEC.v
-set_global_assignment -name VERILOG_FILE ../sms/rtl/parts.v
-set_global_assignment -name SYSTEMVERILOG_FILE ../sms/rtl/sdram.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../sms/rtl/cheatcodes.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../sms/rtl/savestates.sv
-
-# SMS core - VDP / system
-set_global_assignment -name VHDL_FILE ../sms/rtl/video.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/sprom.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/spram.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/dpram.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/vdp_sprites.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/vdp_sprite_shifter.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/vdp_main.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/vdp_cram.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/vdp_background.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/vdp.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/system.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/io.vhd
-set_global_assignment -name VHDL_FILE ../sms/rtl/AudioMix.vhd
+# SMS core RTL (vendored MiSTer upstream subset, via QIP). The core's BIOS ROM
+# init file (mboot.mif) is located via the system.vhd BASE_DIR generic, which
+# core_top sets to ../rtl/upstream/ (relative to this project directory).
+set_global_assignment -name QIP_FILE ../rtl/sms.qip
 
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_1wire
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_spiclk

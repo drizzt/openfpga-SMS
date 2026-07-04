@@ -1,0 +1,153 @@
+name: Upstream PR
+
+# Builds the Copybara sync PR (vendor/upstream-sync) and gates it on timing.
+#
+# - build:   compiles, reverses the bitstream, uploads one installable artifact
+#            per platform (unpacked, so each download is a single clean zip in
+#            SD-card layout, not a zip-of-zips) plus the raw timing/reports.
+# - gate:    fails the check (red) and comments if any path has negative slack,
+#            so a timing-broken sync cannot be approved. Kept separate from build
+#            so the test artifacts are produced even when timing fails.
+#
+# On approval, release-on-approval.yml auto-merges and cuts a release.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # Only the automated upstream-sync PR; ordinary PRs are built by build-branch.
+    if: github.head_ref == 'vendor/upstream-sync'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build chip32
+        run: scripts/build_chip32.sh
+
+      - name: Check package consistency
+        run: scripts/check_packages.sh
+
+      - name: Compile
+        run: docker run --rm -v ${{ github.workspace }}:/build -w /build raetro/quartus:21.1 quartus_sh -t generate.tcl
+
+      - name: Reverse bitstream
+        run: scripts/deploy_bitstream.sh
+
+      - name: Build platform matrix
+        id: matrix
+        run: |
+          # Data-driven from pkg/Cores/*/core.json (no hardcoded platform list).
+          include=$(for f in pkg/Cores/*/core.json; do
+            d=$(basename "$(dirname "$f")")
+            s=$(jq -r '.core.metadata.shortname' "$f")
+            p=$(jq -r '.core.metadata.platform_ids[0]' "$f")
+            jq -nc --arg d "$d" --arg s "$s" --arg p "$p" \
+              '{pkgdir:$d, short:$s, pid:$p}'
+          done | jq -sc '{include: .}')
+          echo "matrix=$include" >> "$GITHUB_OUTPUT"
+
+      - name: Upload packaged tree
+        uses: actions/upload-artifact@v7
+        with:
+          name: pocket-tree
+          path: |
+            pkg/Cores
+            pkg/Platforms
+            pkg/Assets
+
+      - name: Extract timing closure failures
+        if: always()
+        run: scripts/extract_timing_failures.sh projects/output_files/ap_core.sta.summary timing.txt
+
+      - name: Upload timing report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: timing
+          path: timing.txt
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            projects/output_files/ap_core.rbf
+            projects/output_files/ap_core.fit.summary
+            projects/output_files/ap_core.sta.summary
+            projects/output_files/ap_core.sta.rpt
+            projects/output_files/ap_core.flow.rpt
+            build_output/reports/
+
+  package:
+    # One installable artifact per platform, unpacked (single clean zip on
+    # download, SD-card layout). Split from build so a single compile fans out.
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+    steps:
+      - name: Download packaged tree
+        uses: actions/download-artifact@v7
+        with:
+          name: pocket-tree
+          path: pkg
+
+      - name: Upload ${{ matrix.short }} test build
+        uses: actions/upload-artifact@v7
+        with:
+          name: openfpga-${{ matrix.short }}_pr${{ github.event.pull_request.number }}
+          path: |
+            pkg/Cores/${{ matrix.pkgdir }}
+            pkg/Platforms/${{ matrix.pid }}.json
+            pkg/Assets/${{ matrix.pid }}
+
+  gate:
+    # Blocking timing check: red + PR comment on any negative slack.
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download timing report
+        uses: actions/download-artifact@v7
+        with:
+          name: timing
+
+      - name: Gate on timing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # extract_timing_failures.sh writes exactly this line when timing is clean.
+          if grep -qx "No timing closure failures." timing.txt; then
+            echo "Timing clean, no negative slack."
+            exit 0
+          fi
+          {
+            echo "### Timing check failed: negative slack"
+            echo ""
+            echo '```'
+            cat timing.txt
+            echo '```'
+          } > comment.md
+          gh pr comment "$PR" --repo "$REPO" --body-file comment.md
+          echo "::error::Negative slack found; blocking the sync PR." >&2
+          exit 1

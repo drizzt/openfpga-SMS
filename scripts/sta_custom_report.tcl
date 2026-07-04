@@ -7,7 +7,7 @@
 
 # Save working directory BEFORE project_open changes it
 set base_dir [pwd]
-set project_path "$base_dir/src/fpga/build/ap_core"
+set project_path "$base_dir/projects/ap_core"
 set report_dir   "$base_dir/build_output/reports"
 
 file mkdir $report_dir
