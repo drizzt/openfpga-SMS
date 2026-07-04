@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - '**'
+      # master is built + released by release-on-merge.yml
+      - '!master'
       # The Copybara sync PR is built + timing-gated by upstream-pr.yml instead.
       - '!vendor/upstream-sync'
     paths-ignore:
