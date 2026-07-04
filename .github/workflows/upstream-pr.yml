@@ -1,15 +1,15 @@
-name: Upstream PR
+name: PR
 
-# Builds the Copybara sync PR (vendor/upstream-sync) and gates it on timing.
+# Builds every PR into master and gates it on timing.
 #
 # - build:   compiles, reverses the bitstream, uploads one installable artifact
 #            per platform (unpacked, so each download is a single clean zip in
 #            SD-card layout, not a zip-of-zips) plus the raw timing/reports.
 # - gate:    fails the check (red) and comments if any path has negative slack,
-#            so a timing-broken sync cannot be approved. Kept separate from build
+#            so a timing-broken PR cannot be approved. Kept separate from build
 #            so the test artifacts are produced even when timing fails.
 #
-# On approval, release-on-approval.yml auto-merges and cuts a release.
+# This is the single build path for PRs; build-branch.yml is manual only.
 
 on:
   pull_request:
@@ -22,8 +22,6 @@ concurrency:
 
 jobs:
   build:
-    # Only the automated upstream-sync PR; ordinary PRs are built by build-branch.
-    if: github.head_ref == 'vendor/upstream-sync'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -149,5 +147,5 @@ jobs:
             echo '```'
           } > comment.md
           gh pr comment "$PR" --repo "$REPO" --body-file comment.md
-          echo "::error::Negative slack found; blocking the sync PR." >&2
+          echo "::error::Negative slack found; blocking the PR." >&2
           exit 1

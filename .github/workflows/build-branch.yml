@@ -1,17 +1,10 @@
 name: Build
 
 on:
-  workflow_dispatch:   # manual branch build
-  push:
-    branches:
-      - '**'
-      # master is built + released by release-on-merge.yml
-      - '!master'
-      # The Copybara sync PR is built + timing-gated by upstream-pr.yml instead.
-      - '!vendor/upstream-sync'
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
+  workflow_dispatch:   # manual branch build only
+
+# PRs are built + timing-gated by upstream-pr.yml; master by release-on-merge.yml.
+# This workflow stays for on-demand builds of a branch without an open PR.
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
