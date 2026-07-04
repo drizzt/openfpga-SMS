@@ -9,7 +9,7 @@
       "description": "Sega SG-1000",
       "author": "drizzt",
       "url": "https://github.com/drizzt/openfpga-SMS",
-      "version": "1.4.0",
+      "version": "1.5.0",
       "date_release": "2026-07-04"
     },
     "framework": {
