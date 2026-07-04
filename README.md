@@ -7,13 +7,13 @@ LLM assisted port of [MiSTer SMS core](https://github.com/MiSTer-devel/SMS_MiSTe
 ## Features
 
 - **Master System, Game Gear and SG-1000** (NTSC and PAL)
-- **Automatic mapper detection** — Sega, Codemasters, Korean, MSX/Nemesis, Dahjee, linear; same logic as MiSTer
+- **Automatic mapper detection** — Sega, Codemasters, Korean, MSX/Nemesis, Dahjee, linear; same logic as MiSTer, with a manual override via the **Mapper** setting
 - **PSG + FM audio** — jt89 PSG and YM2413 (VM2413) FM
 - **Cart Saves** — 32 KB `.sav`, written back on exit
 - **Save States / Sleep** — Analogue OS save states and suspend/resume
 - **512-byte-headered dumps** handled automatically
 - **Game Gear link** — two-wire Gear-to-Gear serial link between two Pockets over the link port (enable per the **Game Gear Link** setting); link cable required
-- **Settings** — Region (US/EU / Japan), TV System (NTSC / PAL — SMS and SG-1000, see below), FM Sound, Sprites Per Line, Blank Border (BG color / black — blanks the VDP masked left column, SMS and SG-1000), Game Gear Resolution (standard 160×144 / extended full field)
+- **Settings** — Region (US/EU / Japan), TV System (NTSC / PAL — SMS and SG-1000, see below), FM Sound, Sprites Per Line, Blank Border (BG color / black — blanks the VDP masked left column, SMS and SG-1000), Game Gear Resolution (standard 160×144 / extended full field), Mapper (override cartridge mapper auto-detection; Auto/Sega/Codemasters/Korean/Linear/Dahjee on SMS, Auto/Linear/Dahjee on SG-1000; auto-reboots the core to apply), Legacy Palette (SMS only: force the TMS9918 color table on the VDPs)
 
 ## Currently Not Included
 
