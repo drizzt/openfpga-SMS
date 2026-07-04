@@ -38,8 +38,8 @@ core.workflow(
         title = "Sync upstream SMS_MiSTer",
         body = "Automated Copybara sync of MiSTer-devel/SMS_MiSTer rtl/ into rtl/upstream/.\n\n" +
                "The port's local edits are re-applied from .github/upstream_patches/. " +
-               "Approve to auto-merge and cut a release (patch by default; add a " +
-               "release:minor / release:major label to override).",
+               "Merge to cut a release (patch by default; add a release:minor / " +
+               "release:major label before merging to override).",
         integrates = [],
     ),
 

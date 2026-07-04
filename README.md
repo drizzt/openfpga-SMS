@@ -143,13 +143,15 @@ commits that only touch `rtl/` are left alone until they are part of a release.
 That PR is built and timing-gated by `.github/workflows/upstream-pr.yml`: it
 compiles the bitstream and runs static timing analysis. If **any** path has
 negative slack, the timing report is posted as a PR comment and the check fails
-(red), so a timing-broken sync cannot be approved.
+(red). Make that gate a required status check on `master` so a timing-broken
+sync cannot be merged.
 
-Approving the PR triggers `.github/workflows/release-on-approval.yml`, which
-merges it into `master` and cuts a release automatically: version bump, compile,
-tag, GitHub release and the three per-platform zips. The bump is a **patch** by
-default; add a `release:minor` or `release:major` label to the PR before
-approving to override.
+Merging the PR triggers `.github/workflows/release-on-merge.yml`, which cuts a
+release automatically: version bump, compile, tag, GitHub release and the three
+per-platform zips, then deletes the merged branch. It fires however the PR is
+merged (the Merge button or auto-merge). The bump is a **patch** by default; add
+a `release:minor` or `release:major` label to the PR **before merging** to
+override.
 
 Because upstream is re-mirrored on every sync, any local change to a
 `rtl/upstream/` file must be expressed as a patch under

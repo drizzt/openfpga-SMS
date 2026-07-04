@@ -1,14 +1,18 @@
-name: Release on Approval
+name: Release on Merge
 
-# When the maintainer approves the Copybara sync PR (vendor/upstream-sync), merge
-# it into master and cut a release: version bump, compile, tag, GitHub release and
-# the three per-platform zips. Bump type comes from PR labels (release:major /
-# release:minor, otherwise patch). Human-review-triggered runs are not recursion-
-# suppressed, so the default GITHUB_TOKEN is enough.
+# When the Copybara sync PR (vendor/upstream-sync) is merged into master, cut a
+# release: version bump, compile, tag, GitHub release and the three per-platform
+# zips, then delete the merged branch. Fires however the PR is merged (the Merge
+# button or an auto-merge), so there is no "approve but do not merge" trap.
+#
+# Bump type comes from PR labels (release:major / release:minor, otherwise patch),
+# so add the label before merging. The timing gate (upstream-pr.yml) should be a
+# required status check on master so a red PR cannot be merged in the first place.
 
 on:
-  pull_request_review:
-    types: [submitted]
+  pull_request:
+    types: [closed]
+    branches: [master]
 
 concurrency:
   group: release
@@ -17,12 +21,11 @@ concurrency:
 jobs:
   release:
     if: >-
-      github.event.review.state == 'approved' &&
+      github.event.pull_request.merged == true &&
       github.event.pull_request.head.ref == 'vendor/upstream-sync'
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Resolve bump from PR labels
@@ -46,15 +49,6 @@ jobs:
           ref: master
           fetch-depth: 0
 
-      - name: Merge the sync PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          gh pr merge "${{ github.event.pull_request.number }}" --merge --delete-branch
-          git pull --ff-only origin master
-
       - name: Build chip32
         run: scripts/build_chip32.sh
 
@@ -75,6 +69,8 @@ jobs:
 
       - name: Commit version bump
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add pkg/Cores/*/core.json gateware.json
           git commit -m "release v${{ steps.version.outputs.version }}"
           git tag "v${{ steps.version.outputs.version }}"
@@ -90,6 +86,15 @@ jobs:
           name: v${{ steps.version.outputs.version }}
           files: openfpga-*_${{ steps.version.outputs.version }}.zip
           generate_release_notes: true
+
+      - name: Delete merged sync branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X DELETE \
+            "repos/${{ github.repository }}/git/refs/heads/vendor/upstream-sync" \
+            2>/dev/null && echo "branch deleted" || echo "branch already gone"
 
       - name: Extract timing closure failures
         if: always()
