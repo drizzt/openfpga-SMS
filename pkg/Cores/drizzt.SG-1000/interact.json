@@ -79,6 +79,21 @@
           { "name": "BG Color", "value": 0 },
           { "name": "Black", "value": 1 }
         ]
+      },
+      {
+        "name": "Mapper",
+        "id": 50,
+        "type": "list",
+        "enabled": true,
+        "address": "0xA0",
+        "persist": true,
+        "writeonly": true,
+        "defaultval": 0,
+        "options": [
+          { "name": "Auto", "value": 0 },
+          { "name": "Linear", "value": 4 },
+          { "name": "Dahjee", "value": 5 }
+        ]
       }
     ],
     "messages": []

@@ -93,6 +93,38 @@
           { "name": "Internal", "value": 0 },
           { "name": "Disable", "value": 1 }
         ]
+      },
+      {
+        "name": "Mapper",
+        "id": 50,
+        "type": "list",
+        "enabled": true,
+        "address": "0xA0",
+        "persist": true,
+        "writeonly": true,
+        "defaultval": 0,
+        "options": [
+          { "name": "Auto", "value": 0 },
+          { "name": "Sega", "value": 1 },
+          { "name": "Codemasters", "value": 2 },
+          { "name": "Korean", "value": 3 },
+          { "name": "Linear", "value": 4 },
+          { "name": "Dahjee", "value": 5 }
+        ]
+      },
+      {
+        "name": "Legacy Palette",
+        "id": 55,
+        "type": "list",
+        "enabled": true,
+        "address": "0xA4",
+        "persist": true,
+        "writeonly": true,
+        "defaultval": 0,
+        "options": [
+          { "name": "SMS VDP", "value": 0 },
+          { "name": "TMS9918", "value": 1 }
+        ]
       }
     ],
     "messages": []

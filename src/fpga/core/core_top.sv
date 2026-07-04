@@ -676,8 +676,10 @@ end
 // 0x0000008C  GG resolution: 0=standard 160x144, 1=ext.  [interact.json]
 // 0x00000090  TV system: 0=NTSC, 1=PAL (SMS/SG-1000)     [interact.json]
 // 0x00000094  blank border: 0=BG color, 1=black masked left column [interact.json]
-// 0x00000098  BIOS disable: 0=internal boot ROM on, 1=off (SMS only) [interact.json]
+// 0x00000098  BIOS disable: 0=internal boot ROM on, 1=off (SMS only); auto-resets [interact.json]
 // 0x0000009C  link enable: 0=off, 1=on (Game Gear link, GG only)  [interact.json]
+// 0x000000A0  mapper select: 0=auto,1=Sega,2=Codemasters,3=Korean,4=linear,5=Dahjee; auto-resets [interact.json]
+// 0x000000A4  legacy palette: 0=SMS VDP colors, 1=TMS9918 colors (SMS only) [interact.json]
 // 0xF0000000  reset core action                          [interact.json]
 
 reg        downloading = 0;
@@ -690,7 +692,10 @@ reg        pal = 0;
 reg        blank_border = 0;
 reg        bios_disable = 0;
 reg        link_enable = 0;
+reg  [2:0] mapper_sel = 0;
+reg        tms_palette = 0;
 
+localparam [13:0] RESET_PULSE = 14'd8000;  // ~108 us at 74.25 MHz
 reg [13:0] reset_counter = 0;
 wire       core_reset = (reset_counter != 0);
 
@@ -708,9 +713,14 @@ always @(posedge clk_74a) begin
         32'h0000008C: gg_ext_res  <= bridge_wr_data[0];
         32'h00000090: pal         <= bridge_wr_data[0];
         32'h00000094: blank_border <= bridge_wr_data[0];
-        32'h00000098: bios_disable <= bridge_wr_data[0];
+        // BIOS and Mapper only take effect at machine start (boot ROM gate /
+        // cartridge bank init), so a mid-game change is silent until reset.
+        // Pulse the reset counter on write to auto-reboot under the new setting.
+        32'h00000098: begin bios_disable <= bridge_wr_data[0]; reset_counter <= RESET_PULSE; end
         32'h0000009C: link_enable  <= bridge_wr_data[0];
-        32'hF0000000: reset_counter <= 14'd8000;  // ~108 us at 74.25 MHz
+        32'h000000A0: begin mapper_sel <= bridge_wr_data[2:0]; reset_counter <= RESET_PULSE; end
+        32'h000000A4: tms_palette  <= bridge_wr_data[0];
+        32'hF0000000: reset_counter <= RESET_PULSE;
         endcase
     end
 end
@@ -726,13 +736,15 @@ wire       pal_s;
 wire       blank_border_s;
 wire       bios_disable_s;
 wire       link_enable_s;
+wire [2:0] mapper_sel_s;
+wire       tms_palette_s;
 wire       reset_n_s;
 wire       core_reset_s;
 wire       dataslot_allcomplete_s;
 
-synch_3 #(.WIDTH(14)) settings_sync (
-    {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   reset_n,   core_reset,   dataslot_allcomplete},
-    {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
+synch_3 #(.WIDTH(18)) settings_sync (
+    {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   mapper_sel,   tms_palette,   reset_n,   core_reset,   dataslot_allcomplete},
+    {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, mapper_sel_s, tms_palette_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
     clk_sys
 );
 
@@ -1293,6 +1305,7 @@ system #(.MAX_SPPL(63), .BASE_DIR("../sms/")) system (
     .y          ( vy ),
     .color      ( color ),
     .palettemode( palettemode ),
+    .tms_palette( tms_palette_s ),
     .mask_column( mask_column ),
     .black_column( blank_border_s ),
     .smode_M1   ( smode_M1 ),
@@ -1301,11 +1314,11 @@ system #(.MAX_SPPL(63), .BASE_DIR("../sms/")) system (
     .ysj_quirk  ( ysj_quirk ),
     .pal        ( pal_s ),
     .region     ( region_s ),
-    .mapper_lock          ( 1'b0 ),
-    .mapper_codies_force  ( 1'b0 ),
-    .mapper_dahjee_a_force( 1'b0 ),
-    .mapper_linear_force  ( 1'b0 ),
-    .mapper_zemina_force  ( 1'b0 ),
+    .mapper_lock          ( mapper_sel_s == 3'd1 ),  // Sega
+    .mapper_codies_force  ( mapper_sel_s == 3'd2 ),  // Codemasters
+    .mapper_zemina_force  ( mapper_sel_s == 3'd3 ),  // Korean (Zemina/Nemesis)
+    .mapper_linear_force  ( mapper_sel_s == 3'd4 ),  // linear (no mapper)
+    .mapper_dahjee_a_force( mapper_sel_s == 3'd5 ),  // Dahjee Type A
     .vdp_enables( 2'b00 ),
     .psg_enables( 2'b00 ),
 

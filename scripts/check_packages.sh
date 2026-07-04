@@ -45,15 +45,21 @@ done
 # interact.json: the ONLY intentional divergences are platform-specific
 # entries (FM Sound id 25 and TV System id 35 missing on GG; GG Resolution
 # and Game Gear Link reuse ids 35/40 on GG where TV System/Blank Border are
-# absent; BIOS id 45 SMS-only — GG/SG never run the boot ROM).
-# After dropping those ids, the remaining entries must be identical —
+# absent; BIOS id 45 SMS-only, GG/SG never run the boot ROM; Mapper id 50
+# on SMS/SG-1000 only, GG is Sega-mapper only; Legacy Palette id 55 SMS-only,
+# SG-1000 already forces the TMS9918 palette and GG legacy modes are moot).
+# After dropping those ids, the remaining entries must be identical;
 # anything else is drift.
+# Single source for the exempt id set so the filter and the drift message
+# below cannot desync.
+intentional_ids='[25,30,35,40,45,50,55]'
 interact_hash() {
-  jq -S '[.interact.variables[] | select(.id != 25 and .id != 30 and .id != 35 and .id != 40 and .id != 45)]' "$1" \
+  jq -S --argjson skip "$intentional_ids" \
+    '[.interact.variables[] | select(.id as $i | ($skip | index($i)) == null)]' "$1" \
     | md5sum | awk '{print $1}'
 }
 if [ "$(for f in pkg/Cores/*/interact.json; do interact_hash "$f"; done | sort -u | wc -l)" -ne 1 ]; then
-  echo "DRIFT: interact.json differs across packages beyond the intentional ids (25/30/35/40/45):"
+  echo "DRIFT: interact.json differs across packages beyond the intentional ids ($(jq -rn --argjson s "$intentional_ids" '$s | map(tostring) | join("/")')):"
   for f in pkg/Cores/*/interact.json; do
     echo "  $f: $(interact_hash "$f")"
   done
