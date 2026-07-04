@@ -970,12 +970,25 @@ reg        cart_sz512 = 0;
 reg        ysj_quirk = 0;
 reg [31:0] cart_id;
 
+// Per-ROM signature fed to savestates.ss_game_id so the engine can reject a
+// state saved under a different cartridge. Rolling hash over the cart download
+// stream, identical to MiSTer SMS.sv (seed = FNV-1a offset basis, then per
+// byte: rotate left 1, XOR the byte, XOR three address bits). The Pocket BIOS
+// is the internal mboot.mif (BIOSWEN/ext_bios_loaded tied off), so it never
+// reaches this stream and rom_byte_wr covers cartridge bytes only.
+reg [31:0] ss_game_id = 32'h00000000;
+
 always @(posedge clk_sys) begin
     if (rom_dl_start) begin
-        ysj_quirk <= 0;
+        ysj_quirk  <= 0;
+        ss_game_id <= 32'h811C9DC5;
     end
 
     if (rom_byte_wr) begin
+        ss_game_id <= {ss_game_id[30:0], ss_game_id[31]}
+                    ^ {24'd0, romwr_d}
+                    ^ {7'd0, romwr_a[0], romwr_a[8], romwr_a[16]};
+
         cart_mask    <= (romwr_a == 0)   ? 22'd0 : (cart_mask    | romwr_a[21:0]);
         cart_mask512 <= (romwr_a == 512) ? 22'd0 : (cart_mask512 | (romwr_a[21:0] - 10'd512));
         // Headered dumps end at size = N*1024 + 512, so the final byte
@@ -1411,6 +1424,7 @@ savestates savestates_inst (
     .ss_load         ( ss_load ),
     .ss_slot         ( 2'd0 ),
     .ss_bios_mode    ( bios_en & ~dbr ),   // MiSTer: bios_en & ~dbr
+    .ss_game_id      ( ss_game_id ),       // ROM signature: reject cross-ROM loads
     .ss_freeze       ( ss_freeze ),
     .vblank          ( VBlank ),
     // Z80
