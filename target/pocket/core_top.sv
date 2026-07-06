@@ -226,6 +226,9 @@ input   wire    [15:0]  cont4_trig
 
 );
 
+//Analogizer settings
+localparam [7:0] ADDRESS_ANALOGIZER_CONFIG = 8'hF7;
+
 // not using the IR port, so turn off both the LED, and
 // disable the receive circuit to save power
 assign port_ir_tx = 0;
@@ -234,21 +237,23 @@ assign port_ir_rx_disable = 1;
 // bridge endianness
 assign bridge_endian_little = 0;
 
+
+// Let Analogizer framework drive these signals
 // cart is unused, so set all level translators accordingly
 // directions are 0:IN, 1:OUT
-assign cart_tran_bank3 = 8'hzz;
-assign cart_tran_bank3_dir = 1'b0;
-assign cart_tran_bank2 = 8'hzz;
-assign cart_tran_bank2_dir = 1'b0;
-assign cart_tran_bank1 = 8'hzz;
-assign cart_tran_bank1_dir = 1'b0;
-assign cart_tran_bank0 = 4'hf;
-assign cart_tran_bank0_dir = 1'b1;
-assign cart_tran_pin30 = 1'b0;
-assign cart_tran_pin30_dir = 1'bz;
-assign cart_pin30_pwroff_reset = 1'b0;
-assign cart_tran_pin31 = 1'bz;
-assign cart_tran_pin31_dir = 1'b0;
+// assign cart_tran_bank3 = 8'hzz;
+// assign cart_tran_bank3_dir = 1'b0;
+// assign cart_tran_bank2 = 8'hzz;
+// assign cart_tran_bank2_dir = 1'b0;
+// assign cart_tran_bank1 = 8'hzz;
+// assign cart_tran_bank1_dir = 1'b0;
+// assign cart_tran_bank0 = 4'hf;
+// assign cart_tran_bank0_dir = 1'b1;
+// assign cart_tran_pin30 = 1'b0;
+// assign cart_tran_pin30_dir = 1'bz;
+// assign cart_pin30_pwroff_reset = 1'b0;
+// assign cart_tran_pin31 = 1'bz;
+// assign cart_tran_pin31_dir = 1'b0;
 
 // Game Gear link (Gear-to-Gear) on the Pocket link port. Two-wire serial:
 //   SO = TxD (Port C bit 4), SI = RxD (Port C bit 5).
@@ -661,6 +666,13 @@ always @(*) begin
     32'hF8xxxxxx: begin
         bridge_rd_data <= cmd_bridge_rd_data;
     end
+    32'hf2000000: begin
+        bridge_rd_data <= {31'b0, ena_analogizer};
+    end
+
+    {ADDRESS_ANALOGIZER_CONFIG,24'h0}: begin
+        bridge_rd_data <= analogizer_bridge_rd_data;
+    end // Analogizer
     default: begin
         bridge_rd_data <= 0;
     end
@@ -696,6 +708,8 @@ reg  [2:0] mapper_sel = 0;
 reg        tms_palette = 0;
 
 localparam [13:0] RESET_PULSE = 14'd8000;  // ~108 us at 74.25 MHz
+reg        ena_analogizer;
+
 reg [13:0] reset_counter = 0;
 wire       core_reset = (reset_counter != 0);
 
@@ -721,6 +735,8 @@ always @(posedge clk_74a) begin
         32'h000000A0: begin mapper_sel <= bridge_wr_data[2:0]; reset_counter <= RESET_PULSE; end
         32'h000000A4: tms_palette  <= bridge_wr_data[0];
         32'hF0000000: reset_counter <= RESET_PULSE;
+        32'hf2000000: ena_analogizer <= bridge_wr_data[0];
+        32'hF0000000: reset_counter <= 14'd8000;  // ~108 us at 74.25 MHz
         endcase
     end
 end
@@ -745,6 +761,14 @@ wire       dataslot_allcomplete_s;
 synch_3 #(.WIDTH(18)) settings_sync (
     {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   mapper_sel,   tms_palette,   reset_n,   core_reset,   dataslot_allcomplete},
     {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, mapper_sel_s, tms_palette_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
+
+wire ena_analogizer_s;
+
+synch_3 #(1) analogizer_ena_sync(ena_analogizer, ena_analogizer_s, clk_sys);
+
+synch_3 #(.WIDTH(14)) settings_sync (
+    {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   reset_n,   core_reset,   dataslot_allcomplete},
+    {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
     clk_sys
 );
 
