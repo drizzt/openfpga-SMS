@@ -1,0 +1,11 @@
+INTENDED_DEVICE_FAMILY="Cyclone V"
+INVERT_OUTPUT=OFF
+LPM_HINT=UNUSED
+LPM_TYPE=altddio_out
+POWER_UP_HIGH=OFF
+WIDTH=1
+DEVICE_FAMILY="Cyclone V"
+datain_h
+datain_l
+dataout
+outclock

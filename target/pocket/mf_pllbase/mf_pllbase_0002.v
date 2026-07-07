@@ -1,40 +1,34 @@
-// mf_pllbase_0002.v — Cyclone V Fractional-N PLL for SMS core (reconfigurable)
-//
-// Input:  74.25 MHz (Pocket clk_74a)
-//
-// Unified PLL (sys_pll_i) — all four clocks from a single fractional PLL:
-//   Out 0:  clk_sys (0 deg)             — SMS system clock
-//   Out 1:  clk_sys (180 deg, 9312 ps)  — SDRAM clock (DDR-forwarded to dram_clk pin)
-//   Out 2:  clk_sys/10 (0 deg)          — Video dot clock
-//   Out 3:  clk_sys/10 (90 deg)         — Video dot clock (DDR)
-//
-// Power-up = NTSC: clk_sys = 53.693175 MHz = 15 × 3.579545 MHz colorburst.
-// PAL (53.203424 MHz) is reached ONLY by runtime reconfiguration through the
-// reconfig_to_pll/reconfig_from_pll ports (altera_pll_reconfig in core_top):
-// both frequencies share M_int=8 and all C dividers, so the switch rewrites
-// only the DSM fractional-K word (register 7):
-//   NTSC: K = 2910634261 (0xAD7CC115) → VCO 644.318100 MHz
-//   PAL:  K = 2570680398 (0x9939784E) → VCO 638.441088 MHz
-//
-// Explicit counter parameterization (required for pll_subtype
-// "Reconfigurable"; frequency strings alone no longer drive the fitter):
-//   M = 8 + K/2^32 (hi 4 / lo 4), N bypass, vco_div 1
-//   C0 = 12 (6/6)              → clk_sys
-//   C1 = 12 (6/6), prst 7      → clk_sys 180 deg (6 VCO cycles = 9312 ps NTSC)
-//   C2 = 120 (60/60)           → clk_vid
-//   C3 = 120 (60/60), prst 31  → clk_vid 90 deg (30 VCO cycles = 46561 ps NTSC)
-
 `timescale 1ns/10ps
-module mf_pllbase_0002 (
-	input  wire        refclk,
-	input  wire        rst,
-	output wire        outclk_0,
-	output wire        outclk_1,
-	output wire        outclk_2,
-	output wire        outclk_3,
-	output wire        outclk_4,
-	output wire        locked,
-	input  wire [63:0] reconfig_to_pll,
+module  mf_pllbase_0002(
+
+	// interface 'refclk'
+	input wire refclk,
+
+	// interface 'reset'
+	input wire rst,
+
+	// interface 'outclk0'
+	output wire outclk_0,
+
+	// interface 'outclk1'
+	output wire outclk_1,
+
+	// interface 'outclk2'
+	output wire outclk_2,
+
+	// interface 'outclk3'
+	output wire outclk_3,
+
+	// interface 'outclk4'
+	output wire outclk_4,
+
+	// interface 'locked'
+	output wire locked,
+
+	// interface 'reconfig_to_pll'
+	input wire [63:0] reconfig_to_pll,
+
+	// interface 'reconfig_from_pll'
 	output wire [63:0] reconfig_from_pll
 );
 
@@ -43,22 +37,22 @@ module mf_pllbase_0002 (
 		.reference_clock_frequency("74.25 MHz"),
 		.pll_fractional_cout(32),
 		.pll_dsm_out_sel("1st_order"),
-		.operation_mode("direct"),
-		.number_of_clocks(4),
-		.output_clock_frequency0("53.693175 MHz"),
+		.operation_mode("normal"),
+		.number_of_clocks(5),
+		.output_clock_frequency0("12.287999 MHz"),
 		.phase_shift0("0 ps"),
 		.duty_cycle0(50),
-		.output_clock_frequency1("53.693175 MHz"),
-		.phase_shift1("9312 ps"),
+		.output_clock_frequency1("12.287999 MHz"),
+		.phase_shift1("20345 ps"),
 		.duty_cycle1(50),
-		.output_clock_frequency2("5.3693175 MHz"),
+		.output_clock_frequency2("133.119993 MHz"),
 		.phase_shift2("0 ps"),
 		.duty_cycle2(50),
-		.output_clock_frequency3("5.3693175 MHz"),
-		.phase_shift3("46561 ps"),
+		.output_clock_frequency3("133.119992 MHz"),
+		.phase_shift3("6573 ps"),
 		.duty_cycle3(50),
-		.output_clock_frequency4("0 MHz"),
-		.phase_shift4("0 ps"),
+		.output_clock_frequency4("133.119990 MHz"),
+		.phase_shift4("5634 ps"),
 		.duty_cycle4(50),
 		.output_clock_frequency5("0 MHz"),
 		.phase_shift5("0 ps"),
@@ -101,48 +95,48 @@ module mf_pllbase_0002 (
 		.duty_cycle17(50),
 		.pll_type("Cyclone V"),
 		.pll_subtype("Reconfigurable"),
-		.m_cnt_hi_div(4),
-		.m_cnt_lo_div(4),
+		.m_cnt_hi_div(5),
+		.m_cnt_lo_div(5),
 		.n_cnt_hi_div(256),
 		.n_cnt_lo_div(256),
 		.m_cnt_bypass_en("false"),
 		.n_cnt_bypass_en("true"),
 		.m_cnt_odd_div_duty_en("false"),
 		.n_cnt_odd_div_duty_en("false"),
-		.c_cnt_hi_div0(6),
-		.c_cnt_lo_div0(6),
+		.c_cnt_hi_div0(33),
+		.c_cnt_lo_div0(32),
 		.c_cnt_prst0(1),
 		.c_cnt_ph_mux_prst0(0),
 		.c_cnt_in_src0("ph_mux_clk"),
 		.c_cnt_bypass_en0("false"),
-		.c_cnt_odd_div_duty_en0("false"),
-		.c_cnt_hi_div1(6),
-		.c_cnt_lo_div1(6),
-		.c_cnt_prst1(7),
-		.c_cnt_ph_mux_prst1(0),
+		.c_cnt_odd_div_duty_en0("true"),
+		.c_cnt_hi_div1(33),
+		.c_cnt_lo_div1(32),
+		.c_cnt_prst1(17),
+		.c_cnt_ph_mux_prst1(2),
 		.c_cnt_in_src1("ph_mux_clk"),
 		.c_cnt_bypass_en1("false"),
-		.c_cnt_odd_div_duty_en1("false"),
-		.c_cnt_hi_div2(60),
-		.c_cnt_lo_div2(60),
+		.c_cnt_odd_div_duty_en1("true"),
+		.c_cnt_hi_div2(3),
+		.c_cnt_lo_div2(3),
 		.c_cnt_prst2(1),
 		.c_cnt_ph_mux_prst2(0),
 		.c_cnt_in_src2("ph_mux_clk"),
 		.c_cnt_bypass_en2("false"),
 		.c_cnt_odd_div_duty_en2("false"),
-		.c_cnt_hi_div3(60),
-		.c_cnt_lo_div3(60),
-		.c_cnt_prst3(31),
-		.c_cnt_ph_mux_prst3(0),
+		.c_cnt_hi_div3(3),
+		.c_cnt_lo_div3(3),
+		.c_cnt_prst3(6),
+		.c_cnt_ph_mux_prst3(2),
 		.c_cnt_in_src3("ph_mux_clk"),
 		.c_cnt_bypass_en3("false"),
 		.c_cnt_odd_div_duty_en3("false"),
-		.c_cnt_hi_div4(1),
-		.c_cnt_lo_div4(1),
-		.c_cnt_prst4(1),
-		.c_cnt_ph_mux_prst4(0),
+		.c_cnt_hi_div4(3),
+		.c_cnt_lo_div4(3),
+		.c_cnt_prst4(5),
+		.c_cnt_ph_mux_prst4(4),
 		.c_cnt_in_src4("ph_mux_clk"),
-		.c_cnt_bypass_en4("true"),
+		.c_cnt_bypass_en4("false"),
 		.c_cnt_odd_div_duty_en4("false"),
 		.c_cnt_hi_div5(1),
 		.c_cnt_lo_div5(1),
@@ -236,27 +230,24 @@ module mf_pllbase_0002 (
 		.c_cnt_bypass_en17("true"),
 		.c_cnt_odd_div_duty_en17("false"),
 		.pll_vco_div(1),
-		.pll_cp_current(20),
-		.pll_bwctrl(4000),
-		.pll_output_clk_frequency("644.3181 MHz"),
+		.pll_cp_current(30),
+		.pll_bwctrl(2000),
+		.pll_output_clk_frequency("798.719941 MHz"),
 		.pll_fractional_division("2910634261"),
-		// mimic_fbclk_type left at default "gclk": Quartus 21.1 rejects the
-		// MiSTer-era "none", and direct mode never uses the mimic path
+		.mimic_fbclk_type("gclk"),
 		.pll_fbclk_mux_1("glb"),
-		.pll_fbclk_mux_2("m_cnt"),
+		.pll_fbclk_mux_2("fb_1"),
 		.pll_m_cnt_in_src("ph_mux_clk"),
-		.pll_slf_rst("true")
-	) sys_pll_i (
-		.rst               (rst),
-		.outclk            ({outclk_3, outclk_2, outclk_1, outclk_0}),
-		.locked            (locked),
-		.fboutclk          ( ),
-		.fbclk             (1'b0),
-		.refclk            (refclk),
-		.reconfig_to_pll   (reconfig_to_pll),
-		.reconfig_from_pll (reconfig_from_pll)
+		.pll_slf_rst("false")
+	) altera_pll_i (
+		.rst	(rst),
+		.outclk	({outclk_4, outclk_3, outclk_2, outclk_1, outclk_0}),
+		.locked	(locked),
+		.reconfig_to_pll	(reconfig_to_pll),
+		.fboutclk	( ),
+		.fbclk	(1'b0),
+		.refclk	(refclk),
+		.reconfig_from_pll	(reconfig_from_pll)
 	);
-
-	assign outclk_4 = 1'b0;
-
 endmodule
+

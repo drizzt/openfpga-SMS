@@ -708,7 +708,7 @@ reg  [2:0] mapper_sel = 0;
 reg        tms_palette = 0;
 
 localparam [13:0] RESET_PULSE = 14'd8000;  // ~108 us at 74.25 MHz
-reg        ena_analogizer = 0;
+reg        ena_analogizer;
 
 reg [13:0] reset_counter = 0;
 wire       core_reset = (reset_counter != 0);
@@ -761,12 +761,16 @@ wire       dataslot_allcomplete_s;
 synch_3 #(.WIDTH(18)) settings_sync (
     {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   mapper_sel,   tms_palette,   reset_n,   core_reset,   dataslot_allcomplete},
     {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, mapper_sel_s, tms_palette_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
-	 clk_sys
-);
 
 wire ena_analogizer_s;
 
 synch_3 #(1) analogizer_ena_sync(ena_analogizer, ena_analogizer_s, clk_sys);
+
+synch_3 #(.WIDTH(14)) settings_sync (
+    {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   reset_n,   core_reset,   dataslot_allcomplete},
+    {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
+    clk_sys
+);
 
 // Configured-pal status (clk_74a -> clk_sys) for the deterministic-reboot reset.
 // pal_r and the in-flight term are fed straight into synch_3 (which registers
@@ -1214,28 +1218,28 @@ spram #(.widthad_a(13)) ram_inst (
 //   face_start → Pause (SMS) / Start (GG), face_select → console RESET
 // ============================================================
 
-// wire [31:0] cont1_key_s;
-// wire [31:0] cont2_key_s;
-// synch_3 #(.WIDTH(32)) cont1_sync (cont1_key, cont1_key_s, clk_sys);
-// synch_3 #(.WIDTH(32)) cont2_sync (cont2_key, cont2_key_s, clk_sys);
+wire [31:0] cont1_key_s;
+wire [31:0] cont2_key_s;
+synch_3 #(.WIDTH(32)) cont1_sync (cont1_key, cont1_key_s, clk_sys);
+synch_3 #(.WIDTH(32)) cont2_sync (cont2_key, cont2_key_s, clk_sys);
 
-wire p1_up    = p1_controls[0];
-wire p1_down  = p1_controls[1];
-wire p1_left  = p1_controls[2];
-wire p1_right = p1_controls[3];
-wire p1_b1    = p1_controls[5];   // face_b
-wire p1_b2    = p1_controls[4];   // face_a
-wire p1_start = p1_controls[15];
-wire p1_sel   = p1_controls[14];
+wire p1_up    = cont1_key_s[0];
+wire p1_down  = cont1_key_s[1];
+wire p1_left  = cont1_key_s[2];
+wire p1_right = cont1_key_s[3];
+wire p1_b1    = cont1_key_s[5];   // face_b
+wire p1_b2    = cont1_key_s[4];   // face_a
+wire p1_start = cont1_key_s[15];
+wire p1_sel   = cont1_key_s[14];
 
-wire p2_up    = p2_controls[0];
-wire p2_down  = p2_controls[1];
-wire p2_left  = p2_controls[2];
-wire p2_right = p2_controls[3];
-wire p2_b1    = p2_controls[5];
-wire p2_b2    = p2_controls[4];
-wire p2_start = p2_controls[15];
-wire p2_sel   = p2_controls[14];
+wire p2_up    = cont2_key_s[0];
+wire p2_down  = cont2_key_s[1];
+wire p2_left  = cont2_key_s[2];
+wire p2_right = cont2_key_s[3];
+wire p2_b1    = cont2_key_s[5];
+wire p2_b2    = cont2_key_s[4];
+wire p2_start = cont2_key_s[15];
+wire p2_sel   = cont2_key_s[14];
 
 wire pause_n = ~(p1_start | p2_start);          // active low at system
 wire soft_reset_btn = p1_sel | p2_sel;          // SMS console RESET button
@@ -1429,18 +1433,6 @@ video video (
     .vblank     ( VBlank )
 );
 
-//Video signals for Analogizer 
-wire HSync,VSync;
-
-always @(posedge clk_sys) begin
-	HSync <= HS;
-	if(~HSync & HS) VSync <= VS;
-end
-
-wire [7:0] vid_r = {2{color[3:0]}};
-wire [7:0] vid_g = {2{color[7:4]}};
-wire [7:0] vid_b = {2{color[11:8]}};
-
 
 // ============================================================
 // Section 10b: Save States (sleep/wake)
@@ -1605,315 +1597,5 @@ audio_mixer #(
     .audio_lrck ( audio_lrck ),
     .audio_dac  ( audio_dac )
 );
-
-
-// ============================================================
-// Section 13: Analogizer
-// ============================================================
-/*[ANALOGIZER_HOOK_BEGIN]*/
-    //reg analogizer_ena;
-    wire [3:0] analogizer_video_type;
-    wire [4:0] snac_game_cont_type;
-    wire [3:0] snac_cont_assignment;
-    wire       pocket_blank_screen;
-
-    wire analogizer_ena;
-    assign analogizer_ena = ena_analogizer_s; //mod_sw0[0]; //setting from Pocket Menu
-
-    //switch between Analogizer SNAC and Pocket Controls for P1-P4 (P3,P4 when uses PCEngine Multitap)
-    wire [15:0] p1_btn, p2_btn, p3_btn, p4_btn;
-    wire [31:0] p1_joy, p2_joy;
-    reg [31:0] p1_joystick, p2_joystick;
-    reg  [15:0] p1_controls, p2_controls;
-
-    wire snac_is_analog = (snac_game_cont_type == 5'h12) || (snac_game_cont_type == 5'h13);
-
-    //! Player 1 ---------------------------------------------------------------------------
-    reg p1_up_snac, p1_down_snac, p1_left_snac, p1_right_snac;
-    wire p1_up_analog, p1_down_analog, p1_left_analog, p1_right_analog;
-    //using left analog joypad
-    assign p1_up_analog    = (p1_joy[15:8] < 8'h40) ? 1'b1 : 1'b0; //analog range UP 0x00 Idle 0x7F DOWN 0xFF, DEADZONE +- 0x15
-    assign p1_down_analog  = (p1_joy[15:8] > 8'hC0) ? 1'b1 : 1'b0; 
-    assign p1_left_analog  = (p1_joy[7:0]  < 8'h40) ? 1'b1 : 1'b0; //analog range LEFT 0x00 Idle 0x7F RIGHT 0xFF, DEADZONE +- 0x15
-    assign p1_right_analog = (p1_joy[7:0]  > 8'hC0) ? 1'b1 : 1'b0;
-
-    always @(posedge clk_74a) begin
-        p1_up_snac    <= (snac_is_analog) ? p1_up_analog    : p1_btn[0];
-        p1_down_snac  <= (snac_is_analog) ? p1_down_analog  : p1_btn[1];
-        p1_left_snac  <= (snac_is_analog) ? p1_left_analog  : p1_btn[2];
-        p1_right_snac <= (snac_is_analog) ? p1_right_analog : p1_btn[3];
-    end
-    //! Player 2 ---------------------------------------------------------------------------
-    reg p2_up_snac, p2_down_snac, p2_left_snac, p2_right_snac;
-    wire p2_up_analog, p2_down_analog, p2_left_analog, p2_right_analog;
-    //using left analog joypad
-    assign p2_up_analog    = (p2_joy[15:8] < 8'h40) ? 1'b1 : 1'b0; //analog range UP 0x00 Idle 0x7F DOWN 0xFF, DEADZONE +- 0x15
-    assign p2_down_analog  = (p2_joy[15:8] > 8'hC0) ? 1'b1 : 1'b0; 
-    assign p2_left_analog  = (p2_joy[7:0]  < 8'h40) ? 1'b1 : 1'b0; //analog range LEFT 0x00 Idle 0x7F RIGHT 0xFF, DEADZONE +- 0x15
-    assign p2_right_analog = (p2_joy[7:0]  > 8'hC0) ? 1'b1 : 1'b0;
-
-    always @(posedge clk_74a) begin
-        p2_up_snac    <= (snac_is_analog) ? p2_up_analog    : p2_btn[0];
-        p2_down_snac  <= (snac_is_analog) ? p2_down_analog  : p2_btn[1];
-        p2_left_snac  <= (snac_is_analog) ? p2_left_analog  : p2_btn[2];
-        p2_right_snac <= (snac_is_analog) ? p2_right_analog : p2_btn[3];
-    end
-    always @(posedge clk_74a) begin
-        reg [31:0] p1_pocket_btn, p1_pocket_joy;
-        reg [31:0] p2_pocket_btn, p2_pocket_joy;
-
-        if((snac_game_cont_type == 5'h0) || !analogizer_ena) begin //SNAC is disabled
-        //if((snac_game_cont_type == 5'h0)) begin //SNAC is disabled
-            p1_controls <= cont1_key;
-            p2_controls <= cont2_key;
-        end
-        else begin
-        case(snac_cont_assignment[1:0])
-        2'h0:    begin  //SNAC P1 -> Pocket P1
-            p1_controls <= {p1_btn[15:4],p1_right_snac,p1_left_snac,p1_down_snac,p1_up_snac};
-            p2_controls <= cont1_key;
-            end
-        2'h1: begin  //SNAC P1 -> Pocket P2
-            p1_controls <= cont1_key;
-            p2_controls <= p1_btn;
-            end
-        2'h2: begin //SNAC P1 -> Pocket P1, SNAC P2 -> Pocket P2
-            p1_controls <= {p1_btn[15:4],p1_right_snac,p1_left_snac,p1_down_snac,p1_up_snac};
-            p2_controls <= {p2_btn[15:4],p2_right_snac,p2_left_snac,p2_down_snac,p2_up_snac};
-            end
-        2'h3: begin //SNAC P1 -> Pocket P2, SNAC P2 -> Pocket P1
-            p1_controls <= {p2_btn[15:4],p2_right_snac,p2_left_snac,p2_down_snac,p2_up_snac};
-            p2_controls <= {p1_btn[15:4],p1_right_snac,p1_left_snac,p1_down_snac,p1_up_snac};
-            end
-        default: begin 
-            p1_controls <= cont1_key;
-            p2_controls <= cont2_key;
-            end
-        endcase
-        end
-    end
-
-    wire [15:0] p1_btn_CK, p2_btn_CK;
-    wire [31:0] p1_joy_CK, p2_joy_CK;
-    synch_3 #(
-    .WIDTH(16)
-    ) p1b_s (
-        p1_btn_CK,
-        p1_btn,
-        clk_74a
-    );
-
-    synch_3 #(
-        .WIDTH(16)
-    ) p2b_s (
-        p2_btn_CK,
-        p2_btn,
-        clk_74a
-    );
-
-    synch_3 #(
-    .WIDTH(32)
-    ) p3b_s (
-        p1_joy_CK,
-        p1_joy,
-        clk_74a
-    );
-        
-    synch_3 #(
-        .WIDTH(32)
-    ) p4b_s (
-        p2_joy_CK,
-        p2_joy,
-        clk_74a
-    );
-
-
-    // Video Y/C Encoder settings
-    // Follows the Mike Simone Y/C encoder settings:
-    // https://github.com/MikeS11/MiSTerFPGA_YC_Encoder
-    // SET PAL and NTSC TIMING and pass through status bits. ** YC must be enabled in the qsf file **
-    wire [39:0] CHROMA_PHASE_INC;
-    wire [26:0] COLORBURST_RANGE;
-
-    wire PALFLAG;
-
-    parameter NTSC_REF = 3.579545;   
-    parameter PAL_REF = 4.43361875;
-
-    // Parameters to be modifed
-    parameter CLK_VIDEO_NTSC = 53.693175; // Must be filled E.g XX.X Hz - CLK_VIDEO
-    parameter CLK_VIDEO_PAL  = 53.203424; // Must be filled E.g XX.X Hz - CLK_VIDEO
-
-    localparam [39:0] NTSC_PHASE_INC1 = 40'd73300775185; // ((NTSC_REF * 2^40) / CLK_VIDEO_NTSC)
-                                            
-    localparam [39:0] PAL_PHASE_INC1  = 40'd91625970704; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
-
-	localparam [6:0] COLORBURST_START1 = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
-	localparam [9:0] COLORBURST_NTSC_END1 = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START1;
-	localparam [9:0] COLORBURST_PAL_END1 = (10 * (CLK_VIDEO_PAL/PAL_REF)) + COLORBURST_START1;
-
-
-    assign PALFLAG = pal; //(analogizer_video_type == 4'h4); 
-
-	 always @(posedge clk_sys) begin
-		 CHROMA_PHASE_INC <= PALFLAG ? PAL_PHASE_INC1 : NTSC_PHASE_INC1; 
-		 COLORBURST_RANGE <= {COLORBURST_START1, COLORBURST_NTSC_END1, COLORBURST_PAL_END1};
-	 end
-
-    // H/V offset
-    // Assigned to START + UP/DOWN/LEFT/RIGHT buttons
-//     logic [4:0]	hoffset = 5'h0;
-//     logic [4:0]	voffset = 5'h0;
-
-//     logic start_r, up_r, down_r, left_r, right_r, btnA_r, p1r1_r, p2r1_r;
-
-//     always_ff @(posedge clk_48) begin 
-//        start_r <= p1_controls[15];
-//        up_r    <= p1_controls[0];
-//        down_r  <= p1_controls[1];
-//        left_r  <= p1_controls[2];
-//        right_r <= p1_controls[3]; 
-//        btnA_r  <= p1_controls[4];
-//        p1r1_r    <= p1_controls[9]; //R1 button toggles credits
-//        p2r1_r    <= p2_controls[9]; //R1 button toggles credits
-//     end
-//    wire HSync,VSync;
-//    jtframe_resync jtframe_resync
-//    (
-//        .clk(clk_48),
-//        .pxl_cen(pxclk12_cen),
-//        .hs_in(hs_core),
-//        .vs_in(vs_core),
-//        .LVBL(~vblank_core),
-//        .LHBL(~hblank_core),
-//        .hoffset(hoffset), //5bits signed
-//        .voffset(voffset), //5bits signed
-//     //    .hoffset(5'd0), //5bits signed
-//     //    .voffset(5'd0), //5bits signed
-//        .hs_out(HSync),
-//        .vs_out(VSync)
-//    );
-
-//     //Debug OSD: shows Xoffset and Yoffset values and the detected video resolution for Analogizer
-//     wire [7:0] RGB_out_R, RGB_out_G, RGB_out_B;
-//     wire HS_out, VS_out, HB_out, VB_out;
-
-//    osd_top #(
-//    .CLK_HZ(48_000_000),
-//    .DURATION_SEC(4)
-//    ) osd_debug_inst (
-//        .rot90(1'b1),
-//        .clk(clk_48),
-//        .reset(reset48),
-//        .pixel_ce(pxclk6_cen),
-//        .R_in({2{sfrgb[11:8]}}),
-//        .G_in({2{sfrgb[7:4]}}),
-//        .B_in({2{sfrgb[3:0]}}),
-//        .hsync_in(HSync),
-//        .vsync_in(VSync),
-//        .hblank(hblank_core),
-//        .vblank(vblank_core),
-//        .key_right(p1_controls[15] && !left_r && p1_controls[2]), //Detects if Start+Left was pressed
-//        .key_left(p1_controls[15] && !right_r && p1_controls[3] ),//Detects if Start+Right was pressed
-//        .key_down(p1_controls[15] && !up_r && p1_controls[0]),    //Detects if Start+Up was pressed
-//        .key_up(p1_controls[15] && !down_r && p1_controls[1]),    //Detects if Start+Down was pressed
-//        .key_A(p1_controls[15] && !btnA_r && p1_controls[4]),    //Detects if Start+A was pressed
-//        .R_out(RGB_out_R),
-//        .G_out(RGB_out_G),
-//        .B_out(RGB_out_B),
-//        .hsync_out(HS_out),
-//        .vsync_out(VS_out),
-//        .hblank_out(HB_out),
-//        .vblank_out(VB_out),
-//        .h_offset_out(hoffset),
-//        .v_offset_out(voffset),
-//        .analogizer_ready(!busy),
-//        .analogizer_video_type(analogizer_video_type),
-//        .snac_game_cont_type(snac_game_cont_type),
-//        .snac_cont_assignment(snac_cont_assignment),
-//        .vid_mode_in(1'b1),
-//        .osd_pause_out (pause_req)
-//    );
-
-    //53_693_175 - 53_203_424 MHz
-    wire [31:0] analogizer_bridge_rd_data;
-    wire busy;
-    wire VIDEO_DE = ~(HBlank | VBlank);
-    openFPGA_Pocket_Analogizer #(.MASTER_CLK_FREQ(53_693_175), .LINE_LENGTH(300), .ADDRESS_ANALOGIZER_CONFIG(ADDRESS_ANALOGIZER_CONFIG)) analogizer (
-        .clk_74a(clk_74a),
-        .i_clk(clk_sys),
-        .i_rst_apf(reset_active), //i_rst_apf is active high
-        .i_rst_core(reset_active), //i_rst_core is active high
-        //.i_ena(analogizer_ena),
-        .i_ena(1'b1),
-
-        //Video interface
-        .video_clk(clk_vid),
-        .R(vid_r),
-        .G(vid_g),
-        .B(vid_b),
-        .Hblank(HBlank) ,
-        .Vblank(VBlank),
-        .Hsync(HSync), //composite SYNC on HSync.
-        .Vsync(VSync),
-        // .video_clk(clk_sys),
-        // .R(video_r_core),
-        // .G(video_g_core),
-        // .B(video_b_core),
-        // .Hblank(hblank_core),
-        // .Vblank(vblank_core),
-        // .Hsync(hsync_core), //composite SYNC on HSync.
-        // .Vsync(vsync_core),
-        //openFPGA Bridge interface
-        .bridge_endian_little(bridge_endian_little),
-        .bridge_addr(bridge_addr),
-        .bridge_rd(bridge_rd),
-        .analogizer_bridge_rd_data(analogizer_bridge_rd_data),
-        .bridge_wr(bridge_wr),
-        .bridge_wr_data(bridge_wr_data),
-
-        //Analogizer settings
-        .snac_game_cont_type_out(snac_game_cont_type),
-        .snac_cont_assignment_out(snac_cont_assignment),
-        .analogizer_video_type_out(analogizer_video_type),
-        .SC_fx_out(),
-        .pocket_blank_screen_out(pocket_blank_screen),
-        .analogizer_osd_out(),
-
-        //Video Y/C Encoder interface
-        .CHROMA_PHASE_INC(CHROMA_PHASE_INC),
-        .COLORBURST_RANGE(COLORBURST_RANGE),
-        .CHROMA_ADD(0),
-        .CHROMA_MUL(0),
-        .PALFLAG(PALFLAG),
-        //Video SVGA Scandoubler interface
-        .ce_pix(clk_vid),
-        .scandoubler(1'b1), //logic for disable/enable the scandoubler
-        //SNAC interface
-        .p1_btn_state(p1_btn_CK),
-        .p1_joy_state(p1_joy_CK),
-        .p2_btn_state(p2_btn_CK),  
-        .p2_joy_state(p2_joy_CK),
-        .p3_btn_state(),
-        .p4_btn_state(),  
-        .busy(busy),    
-        //Pocket Analogizer IO interface to the Pocket cartridge port
-        .cart_tran_bank2(cart_tran_bank2),
-        .cart_tran_bank2_dir(cart_tran_bank2_dir),
-        .cart_tran_bank3(cart_tran_bank3),
-        .cart_tran_bank3_dir(cart_tran_bank3_dir),
-        .cart_tran_bank1(cart_tran_bank1),
-        .cart_tran_bank1_dir(cart_tran_bank1_dir),
-        .cart_tran_bank0(cart_tran_bank0),
-        .cart_tran_bank0_dir(cart_tran_bank0_dir),
-        .cart_tran_pin30(cart_tran_pin30),
-        .cart_tran_pin30_dir(cart_tran_pin30_dir),
-        .cart_pin30_pwroff_reset(cart_pin30_pwroff_reset),
-        .cart_tran_pin31(cart_tran_pin31),
-        .cart_tran_pin31_dir(cart_tran_pin31_dir),
-        //debug
-        .o_stb()
-    );
-    /*[ANALOGIZER_HOOK_END]*/
 
 endmodule
