@@ -11,6 +11,26 @@
         "value": 1
       },
       {
+          "name": "Enable Analogizer",
+          "id": 15,
+          "type": "list",
+          "enabled": true,
+          "persist": true,
+          "address": "0xF2000000",
+          "defaultval": 0,
+          "mask": "0xFFFFFFFE",
+          "options": [
+              {
+                  "name": "Off",
+                  "value": "0x0"
+              },
+              {
+                  "name": "On",
+                  "value": "0x1"
+              }
+          ]
+      },
+      {
         "name": "Region",
         "id": 20,
         "type": "list",

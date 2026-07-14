@@ -24,6 +24,18 @@
         "nonvolatile": true,
         "address": "0x20000000",
         "size_maximum": "0x8000"
+      },
+      {
+          "name": "Analogizer config",
+          "id": 10,
+          "required": false,
+          "parameters": "0x1000000",
+          "filename": "analogizer.bin",
+          "extensions": [
+              "bin"
+          ],
+          "address": "0xF7000000",
+          "nonvolatile": false
       }
     ]
   }

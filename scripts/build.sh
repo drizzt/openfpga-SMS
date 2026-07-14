@@ -7,7 +7,8 @@ PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 # Default to Quartus 21.1 to match the CI/release toolchain (raetro/quartus:21.1).
 # 25.1 also builds this tree (project files are kept version-neutral, see
 # generate.tcl) — opt in with e.g. QUARTUS_DIR=/opt/intelFPGA_lite/25.1/quartus.
-LOCAL_QUARTUS="${QUARTUS_DIR:-/opt/intelFPGA_lite/21.1/quartus}"
+#LOCAL_QUARTUS="${QUARTUS_DIR:-/opt/intelFPGA_lite/21.1/quartus}"
+LOCAL_QUARTUS="${QUARTUS_DIR:-/home/javier/altera_lite/25.1std/quartus}"
 
 # The reconfig FSM's NTSC K word (core_top.sv) must equal the PLL's power-up
 # fractional division (mf_pllbase_0002.v). Drift is a silent hardware-only

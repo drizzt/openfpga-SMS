@@ -2,9 +2,7 @@
   "core": {
     "magic": "APF_VER_1",
     "metadata": {
-      "platform_ids": [
-        "sms"
-      ],
+      "platform_ids": ["sms","analogizer"],
       "shortname": "SMS",
       "description": "Sega Master System",
       "author": "drizzt",
@@ -22,7 +20,7 @@
       },
       "hardware": {
         "link_port": false,
-        "cartridge_adapter": -1
+        "cartridge_adapter": 0
       },
       "chip32_vm": "chip32.bin"
     },

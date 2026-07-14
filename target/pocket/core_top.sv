@@ -454,33 +454,87 @@ reg ce_cpu;
 reg ce_vdp;
 reg ce_pix;
 reg ce_sp;
+
+// SMS SNAC sync events inside a pixel clock, the idea
+// is to do data capture from cartridge bank1 and change back the port as outout
+// before the next pixel clock, lefting a setup and hold margin
+// around the pixel clock rising edge. This should left unaltered the DAC behaviour
+// with respect to the pixel clock signal
+reg snac_ch1; //change bank1 to input
+reg snac_cap; //capture snac data
+reg snac_ch2; //change bank1 to output
+reg bnk1_out; //set bank1 video data
+// always @(negedge clk_sys) begin
+//     reg [4:0] clkd;
+
+//     ce_sp <= clkd[0];
+//     ce_vdp <= 0;//div5
+//     ce_pix <= 0;//div10
+//     ce_cpu <= 0;//div15
+//     clkd <= clkd + 1'd1;
+//     if (clkd==29) begin
+//         clkd <= 0;
+//         ce_vdp <= 1;
+//         ce_pix <= 1;
+//     end else if (clkd==24) begin
+//         ce_cpu <= 1;  //-- changed cpu phase to please VDPTEST HCounter test;
+//         ce_vdp <= 1;
+//     end else if (clkd==19) begin
+//         ce_vdp <= 1;
+//         ce_pix <= 1;
+//     end else if (clkd==14) begin
+//         ce_vdp <= 1;
+//     end else if (clkd==9) begin
+//         ce_cpu <= 1;
+//         ce_vdp <= 1;
+//         ce_pix <= 1;
+//     end else if (clkd==4) begin
+//         ce_vdp <= 1;
+//     end
+// end
+
 always @(negedge clk_sys) begin
     reg [4:0] clkd;
 
-    ce_sp <= clkd[0];
-    ce_vdp <= 0;//div5
-    ce_pix <= 0;//div10
-    ce_cpu <= 0;//div15
-    clkd <= clkd + 1'd1;
-    if (clkd==29) begin
-        clkd <= 0;
-        ce_vdp <= 1;
-        ce_pix <= 1;
-    end else if (clkd==24) begin
-        ce_cpu <= 1;  //-- changed cpu phase to please VDPTEST HCounter test;
-        ce_vdp <= 1;
-    end else if (clkd==19) begin
-        ce_vdp <= 1;
-        ce_pix <= 1;
-    end else if (clkd==14) begin
-        ce_vdp <= 1;
-    end else if (clkd==9) begin
-        ce_cpu <= 1;
-        ce_vdp <= 1;
-        ce_pix <= 1;
-    end else if (clkd==4) begin
-        ce_vdp <= 1;
-    end
+    // Defaults en cada negedge; el case sólo sobrescribe las fases activas.
+    ce_sp    <= clkd[0];   // ÷2
+    ce_vdp   <= 1'b0;      // ÷5
+    ce_pix   <= 1'b0;      // ÷10
+    ce_cpu   <= 1'b0;      // ÷15
+    snac_ch1 <= 1'b0;
+    snac_cap <= 1'b0;
+    snac_ch2 <= 1'b0;
+    bnk1_out <= 1'b0;
+
+    clkd <= clkd + 5'd1;
+
+    case (clkd)
+        5'd0  : begin snac_ch1 <= 1'b1; bnk1_out <= 1'b1; end
+        //5'd1  : snac_ch1 <= 1'b1;
+        5'd3  : snac_cap <= 1'b1;
+        5'd4  : ce_vdp   <= 1'b1;
+        5'd5  : snac_ch2 <= 1'b1;
+        5'd7  : bnk1_out <= 1'b1;
+        5'd9  : begin ce_cpu <= 1'b1; ce_vdp <= 1'b1; ce_pix <= 1'b1; end
+ 
+        5'd10 : snac_ch1 <= 1'b1;
+        //5'd11 : snac_ch1 <= 1'b1;
+        //5'd13 : snac_cap <= 1'b1;
+        5'd14 : begin ce_vdp   <= 1'b1;snac_cap <= 1'b1; end
+        5'd15 : snac_ch2 <= 1'b1;
+        5'd17 : bnk1_out <= 1'b1;
+        5'd19 : begin ce_vdp <= 1'b1; ce_pix <= 1'b1; end
+
+        5'd20 : snac_ch1 <= 1'b1;
+        //5'd21 : snac_ch1 <= 1'b1;
+        5'd23 : snac_cap <= 1'b1;
+        5'd24 : begin ce_cpu <= 1'b1; ce_vdp <= 1'b1; end //-- changed cpu phase to please VDPTEST HCounter test;
+        5'd25 : snac_ch2 <= 1'b1;
+        5'd27 : bnk1_out <= 1'b1; //active for 28,29,0,1
+        5'd28 : bnk1_out <= 1'b1;
+        5'd29 : begin clkd <= 5'd0; ce_vdp <= 1'b1; ce_pix <= 1'b1; bnk1_out <= 1'b1; end
+        default: ; // 0,2,6,8,10,.. hold values
+    endcase
 end
 
 
@@ -1246,11 +1300,11 @@ wire soft_reset_btn = p1_sel | p2_sel;          // SMS console RESET button
 // ============================================================
 
 wire [8:0]  vx;
-wire [8:0]  vy;
+(* keep *) wire [8:0]  vy;
 wire [11:0] color;
 wire        mask_column;
 wire        smode_M1, smode_M2, smode_M3;
-wire        HS, VS, HBlank, VBlank;
+(* keep *) wire        HS, VS, HBlank, VBlank;
 wire [15:0] audio_l, audio_r;
 
 // ce inputs gated by ss_freeze exactly as MiSTer SMS.sv does — pauses the
@@ -1284,13 +1338,13 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .rom_a      ( ram_addr ),
     .rom_do     ( ram_dout ),
 
-    .j1_up      ( ~p1_up ),
-    .j1_down    ( ~p1_down ),
-    .j1_left    ( ~p1_left ),
-    .j1_right   ( ~p1_right ),
-    .j1_tl      ( ~p1_b1 ),
-    .j1_tr      ( ~p1_b2 ),
-    .j1_th      ( 1'b1 ),
+    .j1_up      ( (enabled_sms_snac) ? sms_up_state       : ~p1_up    ),
+    .j1_down    ( (enabled_sms_snac) ? sms_down_state     : ~p1_down  ),
+    .j1_left    ( (enabled_sms_snac) ? sms_left_state     : ~p1_left  ),
+    .j1_right   ( (enabled_sms_snac) ? sms_right_state    : ~p1_right ),
+    .j1_tl      ( (enabled_sms_snac) ? sms_btn1_state     : ~p1_b1    ),
+    .j1_tr      ( (enabled_sms_snac) ? sms_btn2_state     : ~p1_b2    ),
+    .j1_th      ( (enabled_sms_snac) ? sms_lightgun_state : 1'b1      ),
     .j1_start   ( 1'b0 ),
     .j1_coin    ( 1'b0 ),
     .j1_a3      ( 1'b0 ),
@@ -1430,7 +1484,7 @@ video video (
 );
 
 //Video signals for Analogizer 
-wire HSync,VSync;
+logic HSync,VSync;
 
 always @(posedge clk_sys) begin
 	HSync <= HS;
@@ -1440,6 +1494,63 @@ end
 wire [7:0] vid_r = {2{color[3:0]}};
 wire [7:0] vid_g = {2{color[7:4]}};
 wire [7:0] vid_b = {2{color[11:8]}};
+
+//Logic for SMS SNAC game controller based on hsync period
+logic old_hs=1'b0;
+logic sms_up_state, sms_down_state, sms_left_state, sms_right_state, sms_btn1_state, sms_btn2_state, sms_lightgun_state;
+logic sms_bank0_dir;
+logic sms_bank1_dir;
+logic sms_pin30_dir;
+logic sms_pin31_dir;
+
+(* preserve *) logic sms_capturing=1'b0;
+
+always @(negedge clk_sys) begin
+        if(ce_pix) begin
+            old_hs <= HS;
+            //TH is keep always as input and continuosly capture in each pixel clock
+            sms_lightgun_state <= cart_tran_bank0[7]; // TH         7         RX+             IN4                        bank0[7]
+        end
+        //we are capturing data input  two times per frame, we choose a couple of times throughout a frame, more or less evenly spaced
+        //this keep gamepad button status capture at ~100-120Hz rate depending on whether it is a PAL or NTSC system
+        if ((vy == 9'd40) || (vy == 9'd160)) begin
+            //begin data capture synchronized with the start of horizontal synchronization pulse
+            if (HS & !old_hs) begin
+                sms_capturing <= 1'b1;
+            end 
+
+            if (sms_capturing) begin
+                if(snac_ch1) begin
+                    // Change SNAC related pins direcction to input
+                    sms_bank1_dir <= 1'b0;
+                    sms_bank0_dir <= 1'b0; 
+                    sms_pin30_dir <= 1'b0;
+                    sms_pin31_dir <= 1'b0;  
+                end
+                else if(snac_cap) begin
+                    // Uses Analogizer B configuration
+                    // wait for the port to settle and read port  value     
+                    //                                           ACTION     DB9 PIN   SNAC USB3 PIN   ANALOGIZER PIN (CONF. A)   POCKET CARTRIDGE PIN
+                    sms_down_state     <= cart_tran_bank1[7]; // UP         1         D-              OUT1                       bank1[7]                 
+                    sms_up_state       <= cart_tran_bank1[6]; // DOWN       2         D+              OUT2                       bank1[6]                   
+                    sms_left_state     <= cart_tran_pin30; // LEFT       3         RX-             IO3                           pin30
+                    sms_right_state    <= cart_tran_bank0[6];    // RIGHT      4         GND_D           IO5                     bank0[6]
+                    sms_btn1_state     <= cart_tran_pin31;    // TL(BTN1)   6         TX-             IO6                        pin31
+                    sms_btn2_state     <= cart_tran_bank0[5]; // TR(BTN2)   9         TX+             IN7                        bank0[5]            
+                end
+                else if(snac_ch2) begin
+                    // Change Bank0 direcction to output
+                    // Change SNAC related pins direcction to output
+                    // remaining pins keep as inputs
+                    sms_bank1_dir <= 1'b1; //change to input
+                    sms_bank0_dir <= 1'b0; 
+                    sms_pin30_dir <= 1'b0;
+                    sms_pin31_dir <= 1'b0;     
+                    sms_capturing <= 1'b0; 
+                end
+            end
+        end
+end
 
 
 // ============================================================
@@ -1839,6 +1950,40 @@ audio_mixer #(
     wire [31:0] analogizer_bridge_rd_data;
     wire busy;
     wire VIDEO_DE = ~(HBlank | VBlank);
+
+
+    (* keep *) wire enabled_sms_snac = 1'b1;
+
+    // (* keep *) wire snac_bank1_dir, snac_bank0_dir, snac_pin30_dir, snac_pin31_dir;
+    // (* keep *) wire [7:0] snac_bank1;
+    // (* keep *) wire [7:4] snac_bank0;
+    // (* keep *) wire snac_pin30;
+    // (* keep *) wire snac_pin31; 
+
+    // assign cart_tran_bank1_dir = (enabled_sms_snac) ? sms_bank1_dir : snac_bank1_dir;
+    // assign cart_tran_bank1     = (enabled_sms_snac) ? (bnk1_out ? snac_bank1 : 8'bZ) : snac_bank1; //if bnk1_out is active bank1 is configured as output
+
+    // assign cart_tran_bank0_dir = (enabled_sms_snac) ? sms_bank0_dir : snac_bank0_dir;
+    // assign cart_tran_bank0     = (enabled_sms_snac) ? 4'bZ: snac_bank0;
+    // assign cart_tran_pin30_dir = (enabled_sms_snac) ? sms_pin30_dir : snac_pin30_dir;
+    // assign cart_tran_pin30     = (enabled_sms_snac) ? 1'bZ : snac_pin30;
+    // assign cart_tran_pin31_dir = (enabled_sms_snac) ? sms_pin31_dir : snac_pin31_dir;
+    // assign cart_tran_pin31     = (enabled_sms_snac) ? 1'bZ : snac_pin31;
+
+
+    wire [7:0] analog_bank1_data;   // byte de vídeo del Analogizer
+
+    // bank1: vídeo+SNAC salida, con ventana breve de entrada para leer SMS up/down.
+    // bits [5:0] = vídeo del Analogizer; bits [7:6] = tu control SMS (bulk-low/precarga).
+    wire [7:0] bank1_drive = { 2'b11, analog_bank1_data[5:0] };
+    assign cart_tran_bank1_dir = sms_bank1_dir;                       // 1=salida, 0=ventana lectura
+    assign cart_tran_bank1     = sms_bank1_dir ? bank1_drive : 8'bZ;  // ÚNICO driver del pin
+
+    // bank0[7:4], pin30, pin31: entradas puras para SMS (nunca las conduce el core)
+    assign cart_tran_bank0_dir = 1'b0;  assign cart_tran_bank0 = 4'bZ;
+    assign cart_tran_pin30_dir = 1'b0;  assign cart_tran_pin30 = 1'bZ;
+    assign cart_tran_pin31_dir = 1'b0;  assign cart_tran_pin31 = 1'bZ;
+    
     openFPGA_Pocket_Analogizer #(.MASTER_CLK_FREQ(53_693_175), .LINE_LENGTH(300), .ADDRESS_ANALOGIZER_CONFIG(ADDRESS_ANALOGIZER_CONFIG)) analogizer (
         .clk_74a(clk_74a),
         .i_clk(clk_sys),
@@ -1902,17 +2047,18 @@ audio_mixer #(
         .cart_tran_bank2_dir(cart_tran_bank2_dir),
         .cart_tran_bank3(cart_tran_bank3),
         .cart_tran_bank3_dir(cart_tran_bank3_dir),
-        .cart_tran_bank1(cart_tran_bank1),
-        .cart_tran_bank1_dir(cart_tran_bank1_dir),
-        .cart_tran_bank0(cart_tran_bank0),
-        .cart_tran_bank0_dir(cart_tran_bank0_dir),
-        .cart_tran_pin30(cart_tran_pin30),
-        .cart_tran_pin30_dir(cart_tran_pin30_dir),
+        .cart_tran_bank1(),
+        .cart_tran_bank1_dir(),
+        .cart_tran_bank0(),
+        .cart_tran_bank0_dir(),
+        .cart_tran_pin30(),
+        .cart_tran_pin30_dir(),
         .cart_pin30_pwroff_reset(cart_pin30_pwroff_reset),
-        .cart_tran_pin31(cart_tran_pin31),
-        .cart_tran_pin31_dir(cart_tran_pin31_dir),
+        .cart_tran_pin31(),
+        .cart_tran_pin31_dir(),
         //debug
-        .o_stb()
+        .o_stb(),
+        .o_bank1_data(analog_bank1_data)
     );
     /*[ANALOGIZER_HOOK_END]*/
 

@@ -22,13 +22,13 @@
 # IMPORTANT: This must be defined BEFORE set_clock_groups below,
 # so the fitter knows about sdram_clk during timing-driven optimization.
 create_generated_clock -name sdram_clk \
-  -source [get_pins {ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[1].output_counter|divclk}] \
+  -source [get_pins {ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[1].output_counter|divclk}] \
   [get_ports {dram_clk}]
 
-# Clock groups: all four altera_pll outputs come from the same VCO and are
+# Clock groups: all four sys_pll outputs come from the same VCO and are
 # phase-related, so they all belong in the SAME group. STA is signed off at
 # the NTSC power-up frequencies; the PAL reconfig (53.203424 MHz) is ~0.9%
-# slower, so NTSC is the worst case. The altera_pll is subtype "Reconfigurable"
+# slower, so NTSC is the worst case. The sys_pll is subtype "Reconfigurable"
 # (counter[N].output_counter paths, not general[N].gpll~ like the audio PLL):
 #  - counter[0] = clk_sys 53.693175 MHz
 #  - counter[1] = SDRAM clock (DDR-forwarded to dram_clk)
@@ -39,11 +39,11 @@ set_clock_groups -asynchronous \
  -group { bridge_spiclk } \
  -group { clk_74a } \
  -group { clk_74b } \
- -group { ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk \
-          ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[1].output_counter|divclk \
+ -group { ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[0].output_counter|divclk \
+          ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[1].output_counter|divclk \
           sdram_clk \
-          ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[2].output_counter|divclk \
-          ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[3].output_counter|divclk } \
+          ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[2].output_counter|divclk \
+          ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[3].output_counter|divclk } \
  -group { ic|audio_out|audio_pll|mf_audio_pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk \
           ic|audio_out|audio_pll|mf_audio_pll_inst|altera_pll_i|general[1].gpll~PLL_OUTPUT_COUNTER|divclk }
 
@@ -69,18 +69,18 @@ set_input_delay -clock sdram_clk -min 2.5 [get_ports {dram_dq[*]}]
 # alignment is fixed by the controller state machine (MiSTer-proven at
 # this exact frequency and 180-degree clock phase).
 set_multicycle_path -setup -from [get_clocks {sdram_clk}] \
-  -to [get_clocks {ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk}] 2
+  -to [get_clocks {ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[0].output_counter|divclk}] 2
 set_multicycle_path -hold -from [get_clocks {sdram_clk}] \
-  -to [get_clocks {ic|mp1|mf_pllbase_inst|altera_pll_i|cyclonev_pll|counter[0].output_counter|divclk}] 1
+  -to [get_clocks {ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[0].output_counter|divclk}] 1
 
 # Multicycle path for PLL reconfiguration DPRIO writes:
 # On a NTSC/PAL switch the reconfig core streams the new fractional-K word into
-# the altera_pll over many clk_74a cycles via the DPRIO (avmm_dprio_writedata)
+# the sys_pll over many clk_74a cycles via the DPRIO (avmm_dprio_writedata)
 # interface, with the write data held stable and the PLL gated by WAIT_FOR_LOCK.
 # The single-cycle 13.5 ns launch->capture relationship STA assumes therefore
 # never happens: the reconfig sequence is microseconds long and config-time only
 # (no gameplay path). Relax setup to the 2nd edge, exactly like the SDRAM capture
-# above. Scoped -from the reconfig core -to the altera_pll, so it covers ONLY the
+# above. Scoped -from the reconfig core -to the sys_pll, so it covers ONLY the
 # reconfig writes and never the PLL clock outputs.
 set_multicycle_path -setup -end 2 \
   -from [get_registers {*altera_pll_reconfig_core*}] \

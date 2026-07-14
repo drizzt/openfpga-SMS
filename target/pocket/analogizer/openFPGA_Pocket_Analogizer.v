@@ -142,7 +142,8 @@ module openFPGA_Pocket_Analogizer #(parameter MASTER_CLK_FREQ=50_000_000, parame
 	output  wire            cart_tran_pin31_dir,
     //debug
 	output wire [3:0] DBG_TX,
-    output wire o_stb
+    output wire o_stb,
+	output wire [7:0] o_bank1_data
 );
 
 	//Configuration file dat
@@ -477,7 +478,8 @@ scanlines_analogizer #(0) VGA_scanlines
 	assign cart_tran_bank2         = i_rst_apf | ~i_ena ? 8'hzz : {Bout[0],BLANKnOut,Gout[5:0]};                          //on reset state set ouput value to 8'hZ
 	assign cart_tran_bank2_dir     = i_rst_apf | ~i_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
 	//BK1
-	assign cart_tran_bank1         = i_rst_apf | ~i_ena ? 8'hzz : {CART_BK1_OUT_P76,video_clk,Bout[5:1]};      //on reset state set ouput value to 8'hZ
+	//assign cart_tran_bank1         = i_rst_apf | ~i_ena ? 8'hzz : {CART_BK1_OUT_P76,video_clk,Bout[5:1]};      //on reset state set ouput value to 8'hZ
+	assign o_bank1_data = {CART_BK1_OUT_P76, video_clk, Bout[5:1]};
 	assign cart_tran_bank1_dir     = i_rst_apf | ~i_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
 	//PIN30
 	assign cart_tran_pin30         = i_rst_apf | ~i_ena ? 1'bz : ((CART_PIN30_DIR) ? CART_PIN30_OUT : 1'bZ); //on reset state set ouput value to 4'hf

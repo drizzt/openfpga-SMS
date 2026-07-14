@@ -16,6 +16,7 @@ constant rambuf = 0x1b00
 
 constant cart_dataslot = 1
 constant save_dataslot = 2
+constant analogizer_dataslot = 10
 
 // core_top.sv bridge registers
 constant download_addr = 0x0    // downloading flag (reset envelope)
@@ -73,6 +74,11 @@ pmpw r1,r2                  // downloading = 0 (latches cart size / header skip)
 
 // Load save data if present (missing file is not an error)
 ld r3,#save_dataslot
+loadf r3
+
+
+// Load analogizer data configuration (missing file is not an error)
+ld r3,#analogizer_dataslot
 loadf r3
 
 // Start the core
