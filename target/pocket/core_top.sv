@@ -721,7 +721,7 @@ always @(*) begin
         bridge_rd_data <= cmd_bridge_rd_data;
     end
     32'hf2000000: begin
-        bridge_rd_data <= {31'b0, ena_analogizer};
+        bridge_rd_data <= {30'b0, ena_sms_snac, ena_analogizer};
     end
 
     {ADDRESS_ANALOGIZER_CONFIG,24'h0}: begin
@@ -763,6 +763,7 @@ reg        tms_palette = 0;
 
 localparam [13:0] RESET_PULSE = 14'd8000;  // ~108 us at 74.25 MHz
 reg        ena_analogizer = 0;
+reg        ena_sms_snac = 0;
 
 reg [13:0] reset_counter = 0;
 wire       core_reset = (reset_counter != 0);
@@ -789,7 +790,7 @@ always @(posedge clk_74a) begin
         32'h000000A0: begin mapper_sel <= bridge_wr_data[2:0]; reset_counter <= RESET_PULSE; end
         32'h000000A4: tms_palette  <= bridge_wr_data[0];
         32'hF0000000: reset_counter <= RESET_PULSE;
-        32'hf2000000: ena_analogizer <= bridge_wr_data[0];
+        32'hf2000000: {ena_sms_snac,ena_analogizer} <= bridge_wr_data[1:0];
         32'hF0000000: reset_counter <= 14'd8000;  // ~108 us at 74.25 MHz
         endcase
     end
@@ -819,8 +820,10 @@ synch_3 #(.WIDTH(18)) settings_sync (
 );
 
 wire ena_analogizer_s;
+wire ena_sms_snac_s;
 
-synch_3 #(1) analogizer_ena_sync(ena_analogizer, ena_analogizer_s, clk_sys);
+synch_3 #(2) analogizer_ena_sync({ena_sms_snac,ena_analogizer}, {ena_sms_snac_s,ena_analogizer_s}, clk_sys);
+
 
 // Configured-pal status (clk_74a -> clk_sys) for the deterministic-reboot reset.
 // pal_r and the in-flight term are fed straight into synch_3 (which registers
@@ -1338,13 +1341,13 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .rom_a      ( ram_addr ),
     .rom_do     ( ram_dout ),
 
-    .j1_up      ( (enabled_sms_snac) ? sms_up_state       : ~p1_up    ),
-    .j1_down    ( (enabled_sms_snac) ? sms_down_state     : ~p1_down  ),
-    .j1_left    ( (enabled_sms_snac) ? sms_left_state     : ~p1_left  ),
-    .j1_right   ( (enabled_sms_snac) ? sms_right_state    : ~p1_right ),
-    .j1_tl      ( (enabled_sms_snac) ? sms_btn1_state     : ~p1_b1    ),
-    .j1_tr      ( (enabled_sms_snac) ? sms_btn2_state     : ~p1_b2    ),
-    .j1_th      ( (enabled_sms_snac) ? sms_lightgun_state : 1'b1      ),
+    .j1_up      ( (ena_sms_snac_s) ? sms_up_state       : ~p1_up    ),
+    .j1_down    ( (ena_sms_snac_s) ? sms_down_state     : ~p1_down  ),
+    .j1_left    ( (ena_sms_snac_s) ? sms_left_state     : ~p1_left  ),
+    .j1_right   ( (ena_sms_snac_s) ? sms_right_state    : ~p1_right ),
+    .j1_tl      ( (ena_sms_snac_s) ? sms_btn1_state     : ~p1_b1    ),
+    .j1_tr      ( (ena_sms_snac_s) ? sms_btn2_state     : ~p1_b2    ),
+    .j1_th      ( (ena_sms_snac_s) ? sms_lightgun_state : 1'b1      ),
     .j1_start   ( 1'b0 ),
     .j1_coin    ( 1'b0 ),
     .j1_a3      ( 1'b0 ),
@@ -1360,7 +1363,7 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .j2_coin    ( 1'b0 ),
     .j2_a3      ( 1'b0 ),
 
-    .pause      ( pause_n ),
+    .pause      ( (ena_sms_snac_s) ? ~start_pulse : pause_n ),
     .soft_reset ( soft_reset_btn ),
 
     .E0Type     ( 2'b00 ),
@@ -1551,6 +1554,18 @@ always @(negedge clk_sys) begin
             end
         end
 end
+
+logic start_pulse;
+
+start_combo  #(.CLK_FREQ_HZ(53_693_175)) start_as_btn1_plus_btn2 (
+    .clk(clk_sys),
+    .rst_n(~reset_active),        // reset asíncrono, activo a nivel bajo
+    .btn1_raw(~sms_btn1_state ),     // botón 1, activo alto, señal asíncrona externa
+    .btn2_raw(~sms_btn2_state ),     // botón 2, activo alto, señal asíncrona externa
+
+    .start_pulse(start_pulse),  // pulso emulado de Start (activo alto, START_PULSE_MS de ancho)
+    .combo_active()  // '1' mientras se está contando el hold (útil para debug/LED)
+);
 
 
 // ============================================================
@@ -1989,8 +2004,8 @@ audio_mixer #(
         .i_clk(clk_sys),
         .i_rst_apf(reset_active), //i_rst_apf is active high
         .i_rst_core(reset_active), //i_rst_core is active high
-        //.i_ena(analogizer_ena),
-        .i_ena(1'b1),
+        .i_ena(analogizer_ena),
+        //.i_ena(1'b1),
 
         //Video interface
         .video_clk(clk_vid),

@@ -31,6 +31,26 @@
           ]
       },
       {
+          "name": "Enable SMS/Light Phaser SNAC",
+          "id": 16,
+          "type": "list",
+          "enabled": true,
+          "persist": true,
+          "address": "0xF2000000",
+          "defaultval": 0,
+          "mask": "0xFFFFFFFD",
+          "options": [
+              {
+                  "name": "Off",
+                  "value": "0x0"
+              },
+              {
+                  "name": "On",
+                  "value": "0x2"
+              }
+          ]
+      },
+      {
         "name": "Region",
         "id": 20,
         "type": "list",

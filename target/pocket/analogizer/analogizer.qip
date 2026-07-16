@@ -12,3 +12,4 @@ set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) scanlin
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) hq2x.sv]
 set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path) dualshock_controller.v]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) analogizer_psx.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) start_combo.sv]
