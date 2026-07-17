@@ -1364,7 +1364,8 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .j2_a3      ( 1'b0 ),
 
     .pause      ( (ena_sms_snac_s) ? ~start_pulse : pause_n ),
-    .soft_reset ( soft_reset_btn ),
+    //.soft_reset ( soft_reset_btn ),
+    .soft_reset ( 1'b0 ),
 
     .E0Type     ( 2'b00 ),
     .E1Use      ( 1'b0 ),
