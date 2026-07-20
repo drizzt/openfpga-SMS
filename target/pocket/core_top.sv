@@ -464,34 +464,6 @@ reg snac_ch1; //change bank1 to input
 reg snac_cap; //capture snac data
 reg snac_ch2; //change bank1 to output
 reg bnk1_out; //set bank1 video data
-// always @(negedge clk_sys) begin
-//     reg [4:0] clkd;
-
-//     ce_sp <= clkd[0];
-//     ce_vdp <= 0;//div5
-//     ce_pix <= 0;//div10
-//     ce_cpu <= 0;//div15
-//     clkd <= clkd + 1'd1;
-//     if (clkd==29) begin
-//         clkd <= 0;
-//         ce_vdp <= 1;
-//         ce_pix <= 1;
-//     end else if (clkd==24) begin
-//         ce_cpu <= 1;  //-- changed cpu phase to please VDPTEST HCounter test;
-//         ce_vdp <= 1;
-//     end else if (clkd==19) begin
-//         ce_vdp <= 1;
-//         ce_pix <= 1;
-//     end else if (clkd==14) begin
-//         ce_vdp <= 1;
-//     end else if (clkd==9) begin
-//         ce_cpu <= 1;
-//         ce_vdp <= 1;
-//         ce_pix <= 1;
-//     end else if (clkd==4) begin
-//         ce_vdp <= 1;
-//     end
-// end
 
 always @(negedge clk_sys) begin
     reg [4:0] clkd;
@@ -1502,14 +1474,14 @@ wire [7:0] vid_b = {2{color[11:8]}};
 //Logic for SMS SNAC game controller based on hsync period
 logic old_hs=1'b0;
 logic sms_up_state, sms_down_state, sms_left_state, sms_right_state, sms_btn1_state, sms_btn2_state, sms_lightgun_state;
-logic sms_bank0_dir;
-logic sms_bank1_dir;
-logic sms_pin30_dir;
-logic sms_pin31_dir;
+logic sms_bank0_dir = 1'b0;
+logic sms_bank1_dir = 1'b1; //arranque en salida: bank1 lleva video DAC, nunca debe quedarse en entrada
+logic sms_pin30_dir = 1'b0;
+logic sms_pin31_dir = 1'b0;
 
 (* preserve *) logic sms_capturing=1'b0;
 
-always @(negedge clk_sys) begin
+always @(posedge clk_sys) begin
         if(ce_pix) begin
             old_hs <= HS;
             //TH is keep always as input and continuosly capture in each pixel clock
@@ -1517,7 +1489,14 @@ always @(negedge clk_sys) begin
         end
         //we are capturing data input  two times per frame, we choose a couple of times throughout a frame, more or less evenly spaced
         //this keep gamepad button status capture at ~100-120Hz rate depending on whether it is a PAL or NTSC system
-        if ((vy == 9'd40) || (vy == 9'd160)) begin
+        //Gated with ena_sms_snac_s: con SMS SNAC deshabilitado este bloque no debe
+        //tocar sms_bank1_dir (antes flipaba bank1 a entrada en vy==40/160 aunque
+        //el menu lo tuviera en Off).
+        if (!ena_sms_snac_s) begin
+            sms_bank1_dir <= 1'b1;
+            sms_capturing <= 1'b0;
+        end
+        else if ((vy == 9'd40) || (vy == 9'd160)) begin
             //begin data capture synchronized with the start of horizontal synchronization pulse
             if (HS & !old_hs) begin
                 sms_capturing <= 1'b1;
@@ -1871,135 +1850,56 @@ audio_mixer #(
     parameter CLK_VIDEO_NTSC = 53.693175; // Must be filled E.g XX.X Hz - CLK_VIDEO
     parameter CLK_VIDEO_PAL  = 53.203424; // Must be filled E.g XX.X Hz - CLK_VIDEO
 
-    localparam [39:0] NTSC_PHASE_INC1 = 40'd73300775185; // ((NTSC_REF * 2^40) / CLK_VIDEO_NTSC)
+    localparam [39:0] NTSC_PHASE_INC1 = 40'd73_300_775_185; // ((NTSC_REF * 2^40) / CLK_VIDEO_NTSC)
                                             
-    localparam [39:0] PAL_PHASE_INC1  = 40'd91625970704; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
+    localparam [39:0] PAL_PHASE_INC1  = 40'd91_625_970_704; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
 
 	localparam [6:0] COLORBURST_START1 = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
 	localparam [9:0] COLORBURST_NTSC_END1 = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START1;
 	localparam [9:0] COLORBURST_PAL_END1 = (10 * (CLK_VIDEO_PAL/PAL_REF)) + COLORBURST_START1;
 
 
-    assign PALFLAG = pal; //(analogizer_video_type == 4'h4); 
+    assign PALFLAG = pal_machine; //Based on Core Pocket menu, bypass Analogizer settings 
 
 	 always @(posedge clk_sys) begin
 		 CHROMA_PHASE_INC <= PALFLAG ? PAL_PHASE_INC1 : NTSC_PHASE_INC1; 
 		 COLORBURST_RANGE <= {COLORBURST_START1, COLORBURST_NTSC_END1, COLORBURST_PAL_END1};
 	 end
 
-    // H/V offset
-    // Assigned to START + UP/DOWN/LEFT/RIGHT buttons
-//     logic [4:0]	hoffset = 5'h0;
-//     logic [4:0]	voffset = 5'h0;
-
-//     logic start_r, up_r, down_r, left_r, right_r, btnA_r, p1r1_r, p2r1_r;
-
-//     always_ff @(posedge clk_48) begin 
-//        start_r <= p1_controls[15];
-//        up_r    <= p1_controls[0];
-//        down_r  <= p1_controls[1];
-//        left_r  <= p1_controls[2];
-//        right_r <= p1_controls[3]; 
-//        btnA_r  <= p1_controls[4];
-//        p1r1_r    <= p1_controls[9]; //R1 button toggles credits
-//        p2r1_r    <= p2_controls[9]; //R1 button toggles credits
-//     end
-//    wire HSync,VSync;
-//    jtframe_resync jtframe_resync
-//    (
-//        .clk(clk_48),
-//        .pxl_cen(pxclk12_cen),
-//        .hs_in(hs_core),
-//        .vs_in(vs_core),
-//        .LVBL(~vblank_core),
-//        .LHBL(~hblank_core),
-//        .hoffset(hoffset), //5bits signed
-//        .voffset(voffset), //5bits signed
-//     //    .hoffset(5'd0), //5bits signed
-//     //    .voffset(5'd0), //5bits signed
-//        .hs_out(HSync),
-//        .vs_out(VSync)
-//    );
-
-//     //Debug OSD: shows Xoffset and Yoffset values and the detected video resolution for Analogizer
-//     wire [7:0] RGB_out_R, RGB_out_G, RGB_out_B;
-//     wire HS_out, VS_out, HB_out, VB_out;
-
-//    osd_top #(
-//    .CLK_HZ(48_000_000),
-//    .DURATION_SEC(4)
-//    ) osd_debug_inst (
-//        .rot90(1'b1),
-//        .clk(clk_48),
-//        .reset(reset48),
-//        .pixel_ce(pxclk6_cen),
-//        .R_in({2{sfrgb[11:8]}}),
-//        .G_in({2{sfrgb[7:4]}}),
-//        .B_in({2{sfrgb[3:0]}}),
-//        .hsync_in(HSync),
-//        .vsync_in(VSync),
-//        .hblank(hblank_core),
-//        .vblank(vblank_core),
-//        .key_right(p1_controls[15] && !left_r && p1_controls[2]), //Detects if Start+Left was pressed
-//        .key_left(p1_controls[15] && !right_r && p1_controls[3] ),//Detects if Start+Right was pressed
-//        .key_down(p1_controls[15] && !up_r && p1_controls[0]),    //Detects if Start+Up was pressed
-//        .key_up(p1_controls[15] && !down_r && p1_controls[1]),    //Detects if Start+Down was pressed
-//        .key_A(p1_controls[15] && !btnA_r && p1_controls[4]),    //Detects if Start+A was pressed
-//        .R_out(RGB_out_R),
-//        .G_out(RGB_out_G),
-//        .B_out(RGB_out_B),
-//        .hsync_out(HS_out),
-//        .vsync_out(VS_out),
-//        .hblank_out(HB_out),
-//        .vblank_out(VB_out),
-//        .h_offset_out(hoffset),
-//        .v_offset_out(voffset),
-//        .analogizer_ready(!busy),
-//        .analogizer_video_type(analogizer_video_type),
-//        .snac_game_cont_type(snac_game_cont_type),
-//        .snac_cont_assignment(snac_cont_assignment),
-//        .vid_mode_in(1'b1),
-//        .osd_pause_out (pause_req)
-//    );
-
     //53_693_175 - 53_203_424 MHz
     wire [31:0] analogizer_bridge_rd_data;
     wire busy;
     wire VIDEO_DE = ~(HBlank | VBlank);
 
-
-    (* keep *) wire enabled_sms_snac = 1'b1;
-
-    // (* keep *) wire snac_bank1_dir, snac_bank0_dir, snac_pin30_dir, snac_pin31_dir;
-    // (* keep *) wire [7:0] snac_bank1;
-    // (* keep *) wire [7:4] snac_bank0;
-    // (* keep *) wire snac_pin30;
-    // (* keep *) wire snac_pin31; 
-
-    // assign cart_tran_bank1_dir = (enabled_sms_snac) ? sms_bank1_dir : snac_bank1_dir;
-    // assign cart_tran_bank1     = (enabled_sms_snac) ? (bnk1_out ? snac_bank1 : 8'bZ) : snac_bank1; //if bnk1_out is active bank1 is configured as output
-
-    // assign cart_tran_bank0_dir = (enabled_sms_snac) ? sms_bank0_dir : snac_bank0_dir;
-    // assign cart_tran_bank0     = (enabled_sms_snac) ? 4'bZ: snac_bank0;
-    // assign cart_tran_pin30_dir = (enabled_sms_snac) ? sms_pin30_dir : snac_pin30_dir;
-    // assign cart_tran_pin30     = (enabled_sms_snac) ? 1'bZ : snac_pin30;
-    // assign cart_tran_pin31_dir = (enabled_sms_snac) ? sms_pin31_dir : snac_pin31_dir;
-    // assign cart_tran_pin31     = (enabled_sms_snac) ? 1'bZ : snac_pin31;
-
-
-    wire [7:0] analog_bank1_data;   // byte de vídeo del Analogizer
+    wire [7:0] analog_bank1_data;   // byte completo de bank1 del Analogizer: {OUT1,OUT2,video_clk,B[5:1]}
 
     // bank1: vídeo+SNAC salida, con ventana breve de entrada para leer SMS up/down.
-    // bits [5:0] = vídeo del Analogizer; bits [7:6] = tu control SMS (bulk-low/precarga).
-    wire [7:0] bank1_drive = { 2'b11, analog_bank1_data[5:0] };
-    assign cart_tran_bank1_dir = sms_bank1_dir;                       // 1=salida, 0=ventana lectura
-    assign cart_tran_bank1     = sms_bank1_dir ? bank1_drive : 8'bZ;  // ÚNICO driver del pin
+    // - SMS SNAC ON : bits [7:6] a '1' (bulk-low/precarga) y ventana de lectura via sms_bank1_dir.
+    // - SMS SNAC OFF: se pasa el byte COMPLETO del Analogizer. Bits [7:6] = OUT1/OUT2,
+    //   señales serie de salida del SNAC (p.ej. CLK/CMD del PSX). Antes se machacaban
+    //   con 2'b11 y el mando nunca recibía reloj/comandos. Direccion fija a salida.
+    wire [7:0] bank1_drive = (ena_sms_snac_s) ? { 2'b11, analog_bank1_data[5:0] }
+                                              : analog_bank1_data;
+    assign cart_tran_bank1_dir = (ena_sms_snac_s) ? sms_bank1_dir : 1'b1;         // 1=salida, 0=ventana lectura (solo SMS)
+    assign cart_tran_bank1     = (ena_sms_snac_s) ? (sms_bank1_dir ? bank1_drive : 8'bZ) : bank1_drive;  // ÚNICO driver del pin
 
-    // bank0[7:4], pin30, pin31: entradas puras para SMS (nunca las conduce el core)
-    assign cart_tran_bank0_dir = 1'b0;  assign cart_tran_bank0 = 4'bZ;
-    assign cart_tran_pin30_dir = 1'b0;  assign cart_tran_pin30 = 1'bZ;
-    assign cart_tran_pin31_dir = 1'b0;  assign cart_tran_pin31 = 1'bZ;
-    
+    // bank0[7:4], pin30, pin31:
+    // - SMS SNAC ON : entradas puras (nunca las conduce el core), la logica SMS lee los pads.
+    // - SMS SNAC OFF: tri-state inferido AQUI, sobre los pads reales, gobernado por el
+    //   dir del Analogizer. El camino de entrada al Analogizer va directo del pad
+    //   (puertos *_in de la instancia), asi el SNAC lee el pin fisico. Antes el assign
+    //   unidireccional pad<=red intermedia dejaba las entradas SNAC flotando.
+    assign cart_tran_bank0_dir = (ena_sms_snac_s) ? 1'b0 : analogizer_bank0_dir;
+    assign cart_tran_bank0     = (ena_sms_snac_s) ? 4'bZ : (analogizer_bank0_dir ? analogizer_bank0_out : 4'bZ);
+    assign cart_tran_pin30_dir = (ena_sms_snac_s) ? 1'b0 : analogizer_pin30_dir;
+    assign cart_tran_pin30     = (ena_sms_snac_s) ? 1'bZ : (analogizer_pin30_dir ? analogizer_pin30_out : 1'bZ);
+    assign cart_tran_pin31_dir = (ena_sms_snac_s) ? 1'b0 : analogizer_pin31_dir;
+    assign cart_tran_pin31     = (ena_sms_snac_s) ? 1'bZ : (analogizer_pin31_dir ? analogizer_pin31_out : 1'bZ);
+
+
+    wire       analogizer_bank0_dir, analogizer_pin30_dir, analogizer_pin31_dir;
+    wire [7:4] analogizer_bank0_out;
+    wire       analogizer_pin30_out, analogizer_pin31_out;
     openFPGA_Pocket_Analogizer #(.MASTER_CLK_FREQ(53_693_175), .LINE_LENGTH(300), .ADDRESS_ANALOGIZER_CONFIG(ADDRESS_ANALOGIZER_CONFIG)) analogizer (
         .clk_74a(clk_74a),
         .i_clk(clk_sys),
@@ -2009,7 +1909,8 @@ audio_mixer #(
         //.i_ena(1'b1),
 
         //Video interface
-        .video_clk(clk_vid),
+        //.video_clk(clk_vid),
+        .video_clk(clk_sys),
         .R(vid_r),
         .G(vid_g),
         .B(vid_b),
@@ -2063,15 +1964,16 @@ audio_mixer #(
         .cart_tran_bank2_dir(cart_tran_bank2_dir),
         .cart_tran_bank3(cart_tran_bank3),
         .cart_tran_bank3_dir(cart_tran_bank3_dir),
-        .cart_tran_bank1(),
-        .cart_tran_bank1_dir(),
-        .cart_tran_bank0(),
-        .cart_tran_bank0_dir(),
-        .cart_tran_pin30(),
-        .cart_tran_pin30_dir(),
+        .cart_tran_bank0_out(analogizer_bank0_out),
+        .cart_tran_bank0_in(cart_tran_bank0),          //lectura directa del pad
+        .cart_tran_bank0_dir(analogizer_bank0_dir),
+        .cart_tran_pin30_out(analogizer_pin30_out),
+        .cart_tran_pin30_in(cart_tran_pin30),          //lectura directa del pad
+        .cart_tran_pin30_dir(analogizer_pin30_dir),
         .cart_pin30_pwroff_reset(cart_pin30_pwroff_reset),
-        .cart_tran_pin31(),
-        .cart_tran_pin31_dir(),
+        .cart_tran_pin31_out(analogizer_pin31_out),
+        .cart_tran_pin31_in(cart_tran_pin31),          //lectura directa del pad
+        .cart_tran_pin31_dir(analogizer_pin31_dir),
         //debug
         .o_stb(),
         .o_bank1_data(analog_bank1_data)

@@ -131,14 +131,20 @@ module openFPGA_Pocket_Analogizer #(parameter MASTER_CLK_FREQ=50_000_000, parame
 	output  wire            cart_tran_bank2_dir,
 	inout   wire    [7:0]   cart_tran_bank3,
 	output  wire            cart_tran_bank3_dir,
-	inout   wire    [7:0]   cart_tran_bank1,
-	output  wire            cart_tran_bank1_dir,
-	inout   wire    [7:4]   cart_tran_bank0,
+	//bank1 is driven at core_top level (shared video/SNAC/SMS): the module only
+	//exports its data through o_bank1_data.
+	//bank0/pin30/pin31: separated IN/OUT/DIR signals. The tri-state buffer is
+	//inferred ONLY at core_top on the real pads, so the SNAC input path reads
+	//the physical pin (this was broken with intermediate unidirectional nets).
+	output  wire    [7:4]   cart_tran_bank0_out,
+	input   wire    [7:4]   cart_tran_bank0_in,
 	output  wire            cart_tran_bank0_dir,
-	inout   wire            cart_tran_pin30,
+	output  wire            cart_tran_pin30_out,
+	input   wire            cart_tran_pin30_in,
 	output  wire            cart_tran_pin30_dir,
 	output  wire            cart_pin30_pwroff_reset,
-	inout   wire            cart_tran_pin31,
+	output  wire            cart_tran_pin31_out,
+	input   wire            cart_tran_pin31_in,
 	output  wire            cart_tran_pin31_dir,
     //debug
 	output wire [3:0] DBG_TX,
@@ -466,30 +472,32 @@ scanlines_analogizer #(0) VGA_scanlines
 );
 
 
-	//infer tri-state buffers for cartridge data signals
+	//Cartridge signals. NOTE: no tri-state buffers are inferred here anymore.
+	//OUT/DIR are exported to core_top, which owns the ONLY tri-state assigns on
+	//the physical pads. IN comes straight from the pads, so SNAC reads (PSX DAT,
+	//IN4/IN7, IO pins configured as inputs) see the real pin value.
 	//BK0
-	assign cart_tran_bank0         = i_rst_apf | ~i_ena ? 4'hf : ((CART_BK0_DIR) ? CART_BK0_OUT : 4'hZ);     //on reset state set ouput value to 4'hf
+	assign cart_tran_bank0_out     = i_rst_apf | ~i_ena ? 4'hf : CART_BK0_OUT;                              //on reset state set ouput value to 4'hf
 	assign cart_tran_bank0_dir     = i_rst_apf | ~i_ena ? 1'b1 : CART_BK0_DIR;                              //on reset state set pin dir to output
-	assign CART_BK0_IN             = cart_tran_bank0;
+	assign CART_BK0_IN             = cart_tran_bank0_in;
 	//BK3
 	assign cart_tran_bank3         = i_rst_apf | ~i_ena ? 8'hzz : {Rout[5:0],HsyncOut,VsyncOut};                          //on reset state set ouput value to 8'hZ
 	assign cart_tran_bank3_dir     = i_rst_apf | ~i_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
 	//BK2
 	assign cart_tran_bank2         = i_rst_apf | ~i_ena ? 8'hzz : {Bout[0],BLANKnOut,Gout[5:0]};                          //on reset state set ouput value to 8'hZ
 	assign cart_tran_bank2_dir     = i_rst_apf | ~i_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
-	//BK1
-	//assign cart_tran_bank1         = i_rst_apf | ~i_ena ? 8'hzz : {CART_BK1_OUT_P76,video_clk,Bout[5:1]};      //on reset state set ouput value to 8'hZ
+	//BK1: full byte exported to core_top. Bits [7:6] = CART_BK1_OUT_P76 (OUT1/OUT2,
+	//SNAC serial outputs e.g. PSX CLK/CMD) MUST reach the pads when SMS SNAC is off.
 	assign o_bank1_data = {CART_BK1_OUT_P76, video_clk, Bout[5:1]};
-	assign cart_tran_bank1_dir     = i_rst_apf | ~i_ena ? 1'b0  : 1'b1;                                     //on reset state set pin dir to input
 	//PIN30
-	assign cart_tran_pin30         = i_rst_apf | ~i_ena ? 1'bz : ((CART_PIN30_DIR) ? CART_PIN30_OUT : 1'bZ); //on reset state set ouput value to 4'hf
-	assign cart_tran_pin30_dir     = i_rst_apf | ~i_ena ? 1'b0 : CART_PIN30_DIR;                              //on reset state set pin dir to output
-	assign CART_PIN30_IN           = cart_tran_pin30;
+	assign cart_tran_pin30_out     = i_rst_apf | ~i_ena ? 1'b0 : CART_PIN30_OUT;
+	assign cart_tran_pin30_dir     = i_rst_apf | ~i_ena ? 1'b0 : CART_PIN30_DIR;                              //on reset state set pin dir to input
+	assign CART_PIN30_IN           = cart_tran_pin30_in;
 	assign cart_pin30_pwroff_reset = i_rst_apf | ~i_ena ? 1'b0 : 1'b1;                                      //1'b1 (GPIO USE)
 	//PIN31
-	assign cart_tran_pin31         = i_rst_apf | ~i_ena ? 1'bz : ((CART_PIN31_DIR) ? CART_PIN31_OUT : 1'bZ); //on reset state set ouput value to 4'hf
+	assign cart_tran_pin31_out     = i_rst_apf | ~i_ena ? 1'b0 : CART_PIN31_OUT;
 	assign cart_tran_pin31_dir     = i_rst_apf | ~i_ena ? 1'b0 : CART_PIN31_DIR;                            //on reset state set pin dir to input
-	assign CART_PIN31_IN           = cart_tran_pin31;
+	assign CART_PIN31_IN           = cart_tran_pin31_in;
 endmodule
 
 module sync_fix
