@@ -389,25 +389,43 @@ end
 	//wire yc_hs, yc_vs, 
 	wire yc_cs ;
 
-	yc_out_legacy yc_out
+	// yc_out_legacy yc_out
+	// (
+	// 	.clk(i_clk),
+	// 	.PAL_EN(PALFLAG),
+	// 	.PHASE_INC(CHROMA_PHASE_INC),
+	// 	.COLORBURST_RANGE(COLORBURST_RANGE),
+	// 	.MULFLAG(CHROMA_MUL),
+	// 	.CHRADD(CHROMA_ADD),
+	// 	.CHRMUL(CHROMA_MUL),	
+	// 	.hsync(HS),
+	// 	.vsync(VS),
+	// 	.csync(ANALOGIZER_CSYNC),
+	// 	.dout(yc_o),
+	// 	.din({R_fix, G_fix, B_fix}), //24bits input
+	// 	.hsync_o(),
+	// 	.vsync_o(),
+	// 	.csync_o(yc_cs) //24bits output
+	// );
+
+	yc_out yc_out_inst
 	(
-		.clk(i_clk),
-		.PAL_EN(PALFLAG),
+		.clk(i_clk),	
 		.PHASE_INC(CHROMA_PHASE_INC),
-		.COLORBURST_RANGE(COLORBURST_RANGE),
-		.MULFLAG(CHROMA_MUL),
-		.CHRADD(CHROMA_ADD),
-		.CHRMUL(CHROMA_MUL),	
+		.PAL_EN(PALFLAG),
+
 		.hsync(HS),
 		.vsync(VS),
 		.csync(ANALOGIZER_CSYNC),
+
 		.dout(yc_o),
 		.din({R_fix, G_fix, B_fix}), //24bits input
+
 		.hsync_o(),
 		.vsync_o(),
 		.csync_o(yc_cs) //24bits output
 	);
-
+	
 	wire ce_pix_Sd ;
 	scandoubler_2 #(.LENGTH(LINE_LENGTH), .HALF_DEPTH(0)) sd
 	(

@@ -1852,7 +1852,7 @@ audio_mixer #(
 
     localparam [39:0] NTSC_PHASE_INC1 = 40'd73_300_775_185; // ((NTSC_REF * 2^40) / CLK_VIDEO_NTSC)
                                             
-    localparam [39:0] PAL_PHASE_INC1  = 40'd91_625_970_704; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
+    localparam [39:0] PAL_PHASE_INC1  = 40'd91_625_968_981; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
 
 	localparam [6:0] COLORBURST_START1 = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
 	localparam [9:0] COLORBURST_NTSC_END1 = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START1;
