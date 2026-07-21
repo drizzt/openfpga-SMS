@@ -51,6 +51,26 @@
           ]
       },
       {
+        "name": "Enable Genesis SNAC",
+        "id": 17,
+        "type": "list",
+        "enabled": true,
+        "persist": true,
+        "address": "0xF2000000",
+        "defaultval": 0,
+        "mask": "0xFFFFFFFB",
+        "options": [
+          {
+            "name": "Off",
+            "value": "0x0"
+          },
+          {
+            "name": "On",
+            "value": "0x4"
+          }
+        ]
+      },
+      {
         "name": "Region",
         "id": 20,
         "type": "list",

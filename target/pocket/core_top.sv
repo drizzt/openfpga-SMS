@@ -693,7 +693,7 @@ always @(*) begin
         bridge_rd_data <= cmd_bridge_rd_data;
     end
     32'hf2000000: begin
-        bridge_rd_data <= {30'b0, ena_sms_snac, ena_analogizer};
+        bridge_rd_data <= {29'b0, ena_gen_snac, ena_sms_snac, ena_analogizer};
     end
 
     {ADDRESS_ANALOGIZER_CONFIG,24'h0}: begin
@@ -736,6 +736,7 @@ reg        tms_palette = 0;
 localparam [13:0] RESET_PULSE = 14'd8000;  // ~108 us at 74.25 MHz
 reg        ena_analogizer = 0;
 reg        ena_sms_snac = 0;
+reg        ena_gen_snac = 0;
 
 reg [13:0] reset_counter = 0;
 wire       core_reset = (reset_counter != 0);
@@ -762,7 +763,7 @@ always @(posedge clk_74a) begin
         32'h000000A0: begin mapper_sel <= bridge_wr_data[2:0]; reset_counter <= RESET_PULSE; end
         32'h000000A4: tms_palette  <= bridge_wr_data[0];
         32'hF0000000: reset_counter <= RESET_PULSE;
-        32'hf2000000: {ena_sms_snac,ena_analogizer} <= bridge_wr_data[1:0];
+        32'hf2000000: {ena_gen_snac,ena_sms_snac,ena_analogizer} <= bridge_wr_data[2:0];
         32'hF0000000: reset_counter <= 14'd8000;  // ~108 us at 74.25 MHz
         endcase
     end
@@ -793,8 +794,13 @@ synch_3 #(.WIDTH(18)) settings_sync (
 
 wire ena_analogizer_s;
 wire ena_sms_snac_s;
+wire ena_gen_snac_s;
 
-synch_3 #(2) analogizer_ena_sync({ena_sms_snac,ena_analogizer}, {ena_sms_snac_s,ena_analogizer_s}, clk_sys);
+synch_3 #(3) analogizer_ena_sync({ena_gen_snac,ena_sms_snac,ena_analogizer}, {ena_gen_snac_s,ena_sms_snac_s,ena_analogizer_s}, clk_sys);
+
+//Si ambos SNAC de pad estan habilitados a la vez, Genesis tiene prioridad.
+wire snac_pad_ena = ena_sms_snac_s | ena_gen_snac_s;
+wire sms_mode     = ena_sms_snac_s & ~ena_gen_snac_s;
 
 
 // Configured-pal status (clk_74a -> clk_sys) for the deterministic-reboot reset.
@@ -1313,13 +1319,13 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .rom_a      ( ram_addr ),
     .rom_do     ( ram_dout ),
 
-    .j1_up      ( (ena_sms_snac_s) ? sms_up_state       : ~p1_up    ),
-    .j1_down    ( (ena_sms_snac_s) ? sms_down_state     : ~p1_down  ),
-    .j1_left    ( (ena_sms_snac_s) ? sms_left_state     : ~p1_left  ),
-    .j1_right   ( (ena_sms_snac_s) ? sms_right_state    : ~p1_right ),
-    .j1_tl      ( (ena_sms_snac_s) ? sms_btn1_state     : ~p1_b1    ),
-    .j1_tr      ( (ena_sms_snac_s) ? sms_btn2_state     : ~p1_b2    ),
-    .j1_th      ( (ena_sms_snac_s) ? sms_lightgun_state : 1'b1      ),
+    .j1_up      ( (ena_gen_snac_s) ? gen_up_n            : (sms_mode) ? sms_up_state       : ~p1_up    ),
+    .j1_down    ( (ena_gen_snac_s) ? gen_down_n          : (sms_mode) ? sms_down_state     : ~p1_down  ),
+    .j1_left    ( (ena_gen_snac_s) ? gen_left_n          : (sms_mode) ? sms_left_state     : ~p1_left  ),
+    .j1_right   ( (ena_gen_snac_s) ? gen_right_n         : (sms_mode) ? sms_right_state    : ~p1_right ),
+    .j1_tl      ( (ena_gen_snac_s) ? (gen_a_n & gen_b_n & gen_y_n) : (sms_mode) ? sms_btn1_state     : ~p1_b1    ), //Genesis: A, B o Y -> boton 1
+    .j1_tr      ( (ena_gen_snac_s) ? (gen_c_n & gen_z_n)           : (sms_mode) ? sms_btn2_state     : ~p1_b2    ), //Genesis: C o Z -> boton 2
+    .j1_th      ( (sms_mode)       ? sms_lightgun_state  : 1'b1      ),
     .j1_start   ( 1'b0 ),
     .j1_coin    ( 1'b0 ),
     .j1_a3      ( 1'b0 ),
@@ -1335,7 +1341,7 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .j2_coin    ( 1'b0 ),
     .j2_a3      ( 1'b0 ),
 
-    .pause      ( (ena_sms_snac_s) ? ~start_pulse : pause_n ),
+    .pause      ( (ena_gen_snac_s) ? gen_start_n : (sms_mode) ? ~start_pulse : pause_n ), //Genesis: Start real -> pause
     //.soft_reset ( soft_reset_btn ),
     .soft_reset ( 1'b0 ),
 
@@ -1489,10 +1495,10 @@ always @(posedge clk_sys) begin
         end
         //we are capturing data input  two times per frame, we choose a couple of times throughout a frame, more or less evenly spaced
         //this keep gamepad button status capture at ~100-120Hz rate depending on whether it is a PAL or NTSC system
-        //Gated with ena_sms_snac_s: con SMS SNAC deshabilitado este bloque no debe
-        //tocar sms_bank1_dir (antes flipaba bank1 a entrada en vy==40/160 aunque
-        //el menu lo tuviera en Off).
-        if (!ena_sms_snac_s) begin
+        //Gated with sms_mode: con SMS SNAC deshabilitado (o Genesis activo, que
+        //tiene prioridad) este bloque no debe tocar sms_bank1_dir (antes flipaba
+        //bank1 a entrada en vy==40/160 aunque el menu lo tuviera en Off).
+        if (!sms_mode) begin
             sms_bank1_dir <= 1'b1;
             sms_capturing <= 1'b0;
         end
@@ -1545,6 +1551,64 @@ start_combo  #(.CLK_FREQ_HZ(53_693_175)) start_as_btn1_plus_btn2 (
 
     .start_pulse(start_pulse),  // pulso emulado de Start (activo alto, START_PULSE_MS de ancho)
     .combo_active()  // '1' mientras se está contando el hold (útil para debug/LED)
+);
+
+//------------------------------------------------------------------------------
+// Lector SNAC de mando SEGA Genesis/Mega Drive (3 y 6 botones, autodeteccion).
+// Requiere el cable harness Genesis (RX+ <-> TX- cruzados): SEL sale por pin31
+// y TL entra por bank0[7]. Comparte el generador de ventanas snac_ch1/cap/ch2
+// con el modo SMS: cada fase de la secuencia ocupa una linea con su propia
+// ventana de bank1, asi que la danza con el flanco de video_clk al DAC queda
+// intacta. La secuencia completa de 6 botones (8 lineas, ~508 us) se ejecuta
+// siempre; un pad de 3 botones falla la firma de identificacion y los botones
+// extendidos quedan a soltado (six_button=0).
+//------------------------------------------------------------------------------
+logic gen_sel, gen_bank1_dir;
+logic gen_up_n, gen_down_n, gen_left_n, gen_right_n;
+logic gen_a_n, gen_b_n, gen_c_n, gen_start_n;
+logic gen_x_n, gen_y_n, gen_z_n, gen_mode_n;   //solo validos con six_button=1
+logic gen_six_button;
+
+genesis_snac_reader #(
+    .SAMPLE_LINE1(9'd40),
+    .SAMPLE_LINE2(9'd160)
+) gen_pad (
+    .clk        (clk_sys),
+    .rst        (reset_active),
+    .ena        (ena_gen_snac_s),
+
+    .ce_pix     (ce_pix),
+    .HS         (HS),
+    .vy         (vy),
+
+    .snac_ch1   (snac_ch1),
+    .snac_cap   (snac_cap),
+    .snac_ch2   (snac_ch2),
+
+    //lecturas directas de los pads fisicos del cartucho
+    .bank1_in   (cart_tran_bank1),
+    .pin30_in   (cart_tran_pin30),
+    .bank0_7_in (cart_tran_bank0[7]),
+    .bank0_6_in (cart_tran_bank0[6]),
+    .bank0_5_in (cart_tran_bank0[5]),
+
+    .sel        (gen_sel),
+    .bank1_dir  (gen_bank1_dir),
+
+    .up_n       (gen_up_n),
+    .down_n     (gen_down_n),
+    .left_n     (gen_left_n),
+    .right_n    (gen_right_n),
+    .a_n        (gen_a_n),
+    .b_n        (gen_b_n),
+    .c_n        (gen_c_n),
+    .start_n    (gen_start_n),
+
+    .x_n        (gen_x_n),
+    .y_n        (gen_y_n),
+    .z_n        (gen_z_n),
+    .mode_n     (gen_mode_n),
+    .six_button (gen_six_button)
 );
 
 
@@ -1852,7 +1916,7 @@ audio_mixer #(
 
     localparam [39:0] NTSC_PHASE_INC1 = 40'd73_300_775_185; // ((NTSC_REF * 2^40) / CLK_VIDEO_NTSC)
                                             
-    localparam [39:0] PAL_PHASE_INC1  = 40'd91_625_968_981; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
+    localparam [39:0] PAL_PHASE_INC1  = 40'd91_625_970_704; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
 
 	localparam [6:0] COLORBURST_START1 = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
 	localparam [9:0] COLORBURST_NTSC_END1 = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START1;
@@ -1873,28 +1937,34 @@ audio_mixer #(
 
     wire [7:0] analog_bank1_data;   // byte completo de bank1 del Analogizer: {OUT1,OUT2,video_clk,B[5:1]}
 
-    // bank1: vídeo+SNAC salida, con ventana breve de entrada para leer SMS up/down.
-    // - SMS SNAC ON : bits [7:6] a '1' (bulk-low/precarga) y ventana de lectura via sms_bank1_dir.
-    // - SMS SNAC OFF: se pasa el byte COMPLETO del Analogizer. Bits [7:6] = OUT1/OUT2,
-    //   señales serie de salida del SNAC (p.ej. CLK/CMD del PSX). Antes se machacaban
-    //   con 2'b11 y el mando nunca recibía reloj/comandos. Direccion fija a salida.
-    wire [7:0] bank1_drive = (ena_sms_snac_s) ? { 2'b11, analog_bank1_data[5:0] }
-                                              : analog_bank1_data;
-    assign cart_tran_bank1_dir = (ena_sms_snac_s) ? sms_bank1_dir : 1'b1;         // 1=salida, 0=ventana lectura (solo SMS)
-    assign cart_tran_bank1     = (ena_sms_snac_s) ? (sms_bank1_dir ? bank1_drive : 8'bZ) : bank1_drive;  // ÚNICO driver del pin
+    // bank1: vídeo+SNAC salida, con ventana breve de entrada para leer up/down del pad.
+    // - SNAC pad ON (SMS o Genesis): bits [7:6] a '1' (precarga/idle alto) y ventana de
+    //   lectura gobernada por el modo activo (Genesis tiene prioridad).
+    // - SNAC pad OFF: se pasa el byte COMPLETO del Analogizer. Bits [7:6] = OUT1/OUT2,
+    //   señales serie de salida del SNAC (p.ej. CLK/CMD del PSX). Direccion fija a salida.
+    wire bank1_dir_eff = (ena_gen_snac_s) ? gen_bank1_dir :
+                         (sms_mode)       ? sms_bank1_dir : 1'b1;
+    wire [7:0] bank1_drive = (snac_pad_ena) ? { 2'b11, analog_bank1_data[5:0] }
+                                            : analog_bank1_data;
+    assign cart_tran_bank1_dir = bank1_dir_eff;                                   // 1=salida, 0=ventana lectura
+    assign cart_tran_bank1     = bank1_dir_eff ? bank1_drive : 8'bZ;              // ÚNICO driver del pin
 
-    // bank0[7:4], pin30, pin31:
-    // - SMS SNAC ON : entradas puras (nunca las conduce el core), la logica SMS lee los pads.
-    // - SMS SNAC OFF: tri-state inferido AQUI, sobre los pads reales, gobernado por el
-    //   dir del Analogizer. El camino de entrada al Analogizer va directo del pad
-    //   (puertos *_in de la instancia), asi el SNAC lee el pin fisico. Antes el assign
-    //   unidireccional pad<=red intermedia dejaba las entradas SNAC flotando.
-    assign cart_tran_bank0_dir = (ena_sms_snac_s) ? 1'b0 : analogizer_bank0_dir;
-    assign cart_tran_bank0     = (ena_sms_snac_s) ? 4'bZ : (analogizer_bank0_dir ? analogizer_bank0_out : 4'bZ);
-    assign cart_tran_pin30_dir = (ena_sms_snac_s) ? 1'b0 : analogizer_pin30_dir;
-    assign cart_tran_pin30     = (ena_sms_snac_s) ? 1'bZ : (analogizer_pin30_dir ? analogizer_pin30_out : 1'bZ);
-    assign cart_tran_pin31_dir = (ena_sms_snac_s) ? 1'b0 : analogizer_pin31_dir;
-    assign cart_tran_pin31     = (ena_sms_snac_s) ? 1'bZ : (analogizer_pin31_dir ? analogizer_pin31_out : 1'bZ);
+    // bank0[7:4], pin30:
+    // - SNAC pad ON (SMS o Genesis): entradas puras, la logica del pad lee los pads.
+    // - SNAC pad OFF: tri-state inferido AQUI, sobre los pads reales, gobernado por el
+    //   dir del Analogizer. El camino de entrada al Analogizer va directo del pad.
+    assign cart_tran_bank0_dir = (snac_pad_ena) ? 1'b0 : analogizer_bank0_dir;
+    assign cart_tran_bank0     = (snac_pad_ena) ? 4'bZ : (analogizer_bank0_dir ? analogizer_bank0_out : 4'bZ);
+    assign cart_tran_pin30_dir = (snac_pad_ena) ? 1'b0 : analogizer_pin30_dir;
+    assign cart_tran_pin30     = (snac_pad_ena) ? 1'bZ : (analogizer_pin30_dir ? analogizer_pin30_out : 1'bZ);
+    // pin31:
+    // - Genesis SNAC ON: SALIDA, conduce la linea SEL/TH del pad (harness Genesis).
+    // - SMS SNAC ON    : entrada pura (TL/boton 1 con el cable SMS).
+    // - SNAC pad OFF   : lo gobierna el Analogizer.
+    assign cart_tran_pin31_dir = (ena_gen_snac_s) ? 1'b1 :
+                                 (sms_mode)       ? 1'b0 : analogizer_pin31_dir;
+    assign cart_tran_pin31     = (ena_gen_snac_s) ? gen_sel :
+                                 (sms_mode)       ? 1'bZ    : (analogizer_pin31_dir ? analogizer_pin31_out : 1'bZ);
 
 
     wire       analogizer_bank0_dir, analogizer_pin30_dir, analogizer_pin31_dir;
