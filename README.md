@@ -18,12 +18,12 @@ LLM assisted port of [MiSTer SMS core](https://github.com/MiSTer-devel/SMS_MiSTe
 ## Analogizer support
 
 Support for the [Analogizer adapter](https://github.com/RndMnkIII/Analogizer) (enabled globally via the `Enable Analogizer` option in the Pocket menu) adds the following features to the core:
-- **Native analog video output** in RGBS (15kHz), RGsB, YPbPr, and RGBHV (SVGA 31kHz scandoubler) formats.
+- **Native analog video output** in RGBS (15kHz), RGsB, YPbPr, Y/C NTSC & PAL and RGBHV (SVGA 31kHz scandoubler) formats.
 - **Generic support for native controllers via SNAC** (DB15 Neo Geo, NES, SNES, PC Engine, PSX digital and analog).
 - **Exclusive to the SMS core:** native support for SMS controllers and the Light Phaser light gun; only one can be used at a time,
   assignable to either the Player 1 port or the Player port. To enable this support—which bypasses generic SNAC settings—
   enable the `Enable SMS/Light Phaser SNAC` option. If disabled, the generic configuration settings
-  for Analogizer will be used.
+  for Analogizer will be used. Added SNAC support forn SEGA Genesis 3 and 6 buttons game controllers via the Pocket menu `Enable Genesis SNAC` option.
 
   **Generic Analogizer configuration** relies on a file located at `\Assets\analogizer\common\analogizer.bin`.
   To generate this file, you can use the `Pupdate` core download and update utility or the [Analogizer Configurator](https://github.com/RndMnkIII/AnalogizerConfigurator/releases).
