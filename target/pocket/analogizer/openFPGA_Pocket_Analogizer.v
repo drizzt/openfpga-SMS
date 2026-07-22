@@ -330,9 +330,9 @@ end
 				BLANKnOut = ANALOGIZER_DE;
 			end
 			4'h3, 4'h4: begin// Y/C Modes works for Analogizer R1, R2 Adapters
-				Rout = yc_o[23:18];
-				Gout = yc_o[15:10];
-				Bout = yc_o[7:2];
+				Rout = yc_o[15:10]; //Warning: check if using yc_out_legacy that uses yc_o[23:18]
+				Gout = yc_o[7:2]; //Warning: check if using yc_out_legacy that uses yc_o[15:10]
+				Bout = 6'd0;      //Warning: check if using yc_out_legacy that uses yc_o[7:2]
 				HsyncOut = yc_cs;
 				VsyncOut = 1'b1;
 				BLANKnOut = 1'b1;
@@ -385,7 +385,7 @@ end
 		.de_o(YPbPr_blank)
 	);
 
-	wire [23:0] yc_o ;
+	wire [15:0] yc_o ;
 	//wire yc_hs, yc_vs, 
 	wire yc_cs ;
 
@@ -418,7 +418,7 @@ end
 		.vsync(VS),
 		.csync(ANALOGIZER_CSYNC),
 
-		.dout(yc_o),
+		.dout(yc_o), //warning: 16bits output
 		.din({R_fix, G_fix, B_fix}), //24bits input
 
 		.hsync_o(),

@@ -22,12 +22,12 @@ Support for the [Analogizer adapter](https://github.com/RndMnkIII/Analogizer) (e
 - **Generic support for native controllers via SNAC** (DB15 Neo Geo, NES, SNES, PC Engine, PSX digital and analog).
 - **Exclusive to the SMS core:** native support for SMS controllers and the Light Phaser light gun; only one can be used at a time,
   assignable to either the Player 1 port or the Player port. To enable this support—which bypasses generic SNAC settings—
-  enable the `Enable SMS/Light Phaser SNAC` option. If disabled, the generic configuration settings
-  for Analogizer will be used. Added SNAC support forn SEGA Genesis 3 and 6 buttons game controllers via the Pocket menu `Enable Genesis SNAC` option.
+  enable the `SMS/Light Phaser SNAC` option. If disabled, the generic configuration settings
+  for Analogizer will be used. Added SNAC support forn SEGA Genesis 3 and 6 buttons game controllers via the Pocket menu `Genesis SNAC` option. These options are all under `SEGA SNAC` menu.
 
   **Generic Analogizer configuration** relies on a file located at `\Assets\analogizer\common\analogizer.bin`.
   To generate this file, you can use the `Pupdate` core download and update utility or the [Analogizer Configurator](https://github.com/RndMnkIII/AnalogizerConfigurator/releases).
-
+  
 ## Currently Not Included
 
 Compared to MiSTer: paddle, SK-1100
