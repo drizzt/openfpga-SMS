@@ -226,6 +226,9 @@ input   wire    [15:0]  cont4_trig
 
 );
 
+//Analogizer settings
+localparam [7:0] ADDRESS_ANALOGIZER_CONFIG = 8'hF7;
+
 // not using the IR port, so turn off both the LED, and
 // disable the receive circuit to save power
 assign port_ir_tx = 0;
@@ -234,21 +237,23 @@ assign port_ir_rx_disable = 1;
 // bridge endianness
 assign bridge_endian_little = 0;
 
+
+// Let Analogizer framework drive these signals
 // cart is unused, so set all level translators accordingly
 // directions are 0:IN, 1:OUT
-assign cart_tran_bank3 = 8'hzz;
-assign cart_tran_bank3_dir = 1'b0;
-assign cart_tran_bank2 = 8'hzz;
-assign cart_tran_bank2_dir = 1'b0;
-assign cart_tran_bank1 = 8'hzz;
-assign cart_tran_bank1_dir = 1'b0;
-assign cart_tran_bank0 = 4'hf;
-assign cart_tran_bank0_dir = 1'b1;
-assign cart_tran_pin30 = 1'b0;
-assign cart_tran_pin30_dir = 1'bz;
-assign cart_pin30_pwroff_reset = 1'b0;
-assign cart_tran_pin31 = 1'bz;
-assign cart_tran_pin31_dir = 1'b0;
+// assign cart_tran_bank3 = 8'hzz;
+// assign cart_tran_bank3_dir = 1'b0;
+// assign cart_tran_bank2 = 8'hzz;
+// assign cart_tran_bank2_dir = 1'b0;
+// assign cart_tran_bank1 = 8'hzz;
+// assign cart_tran_bank1_dir = 1'b0;
+// assign cart_tran_bank0 = 4'hf;
+// assign cart_tran_bank0_dir = 1'b1;
+// assign cart_tran_pin30 = 1'b0;
+// assign cart_tran_pin30_dir = 1'bz;
+// assign cart_pin30_pwroff_reset = 1'b0;
+// assign cart_tran_pin31 = 1'bz;
+// assign cart_tran_pin31_dir = 1'b0;
 
 // Game Gear link (Gear-to-Gear) on the Pocket link port. Two-wire serial:
 //   SO = TxD (Port C bit 4), SI = RxD (Port C bit 5).
@@ -449,33 +454,59 @@ reg ce_cpu;
 reg ce_vdp;
 reg ce_pix;
 reg ce_sp;
+
+// SMS SNAC sync events inside a pixel clock, the idea
+// is to do data capture from cartridge bank1 and change back the port as outout
+// before the next pixel clock, lefting a setup and hold margin
+// around the pixel clock rising edge. This should left unaltered the DAC behaviour
+// with respect to the pixel clock signal
+reg snac_ch1; //change bank1 to input
+reg snac_cap; //capture snac data
+reg snac_ch2; //change bank1 to output
+reg bnk1_out; //set bank1 video data
+
 always @(negedge clk_sys) begin
     reg [4:0] clkd;
 
-    ce_sp <= clkd[0];
-    ce_vdp <= 0;//div5
-    ce_pix <= 0;//div10
-    ce_cpu <= 0;//div15
-    clkd <= clkd + 1'd1;
-    if (clkd==29) begin
-        clkd <= 0;
-        ce_vdp <= 1;
-        ce_pix <= 1;
-    end else if (clkd==24) begin
-        ce_cpu <= 1;  //-- changed cpu phase to please VDPTEST HCounter test;
-        ce_vdp <= 1;
-    end else if (clkd==19) begin
-        ce_vdp <= 1;
-        ce_pix <= 1;
-    end else if (clkd==14) begin
-        ce_vdp <= 1;
-    end else if (clkd==9) begin
-        ce_cpu <= 1;
-        ce_vdp <= 1;
-        ce_pix <= 1;
-    end else if (clkd==4) begin
-        ce_vdp <= 1;
-    end
+    // Defaults en cada negedge; el case sólo sobrescribe las fases activas.
+    ce_sp    <= clkd[0];   // ÷2
+    ce_vdp   <= 1'b0;      // ÷5
+    ce_pix   <= 1'b0;      // ÷10
+    ce_cpu   <= 1'b0;      // ÷15
+    snac_ch1 <= 1'b0;
+    snac_cap <= 1'b0;
+    snac_ch2 <= 1'b0;
+    bnk1_out <= 1'b0;
+
+    clkd <= clkd + 5'd1;
+
+    case (clkd)
+        5'd0  : begin snac_ch1 <= 1'b1; bnk1_out <= 1'b1; end
+        //5'd1  : snac_ch1 <= 1'b1;
+        5'd3  : snac_cap <= 1'b1;
+        5'd4  : ce_vdp   <= 1'b1;
+        5'd5  : snac_ch2 <= 1'b1;
+        5'd7  : bnk1_out <= 1'b1;
+        5'd9  : begin ce_cpu <= 1'b1; ce_vdp <= 1'b1; ce_pix <= 1'b1; end
+ 
+        5'd10 : snac_ch1 <= 1'b1;
+        //5'd11 : snac_ch1 <= 1'b1;
+        //5'd13 : snac_cap <= 1'b1;
+        5'd14 : begin ce_vdp   <= 1'b1;snac_cap <= 1'b1; end
+        5'd15 : snac_ch2 <= 1'b1;
+        5'd17 : bnk1_out <= 1'b1;
+        5'd19 : begin ce_vdp <= 1'b1; ce_pix <= 1'b1; end
+
+        5'd20 : snac_ch1 <= 1'b1;
+        //5'd21 : snac_ch1 <= 1'b1;
+        5'd23 : snac_cap <= 1'b1;
+        5'd24 : begin ce_cpu <= 1'b1; ce_vdp <= 1'b1; end //-- changed cpu phase to please VDPTEST HCounter test;
+        5'd25 : snac_ch2 <= 1'b1;
+        5'd27 : bnk1_out <= 1'b1; //active for 28,29,0,1
+        5'd28 : bnk1_out <= 1'b1;
+        5'd29 : begin clkd <= 5'd0; ce_vdp <= 1'b1; ce_pix <= 1'b1; bnk1_out <= 1'b1; end
+        default: ; // 0,2,6,8,10,.. hold values
+    endcase
 end
 
 
@@ -661,6 +692,13 @@ always @(*) begin
     32'hF8xxxxxx: begin
         bridge_rd_data <= cmd_bridge_rd_data;
     end
+    32'hf2000000: begin
+        bridge_rd_data <= {29'b0, ena_gen_snac, ena_sms_snac, ena_analogizer};
+    end
+
+    {ADDRESS_ANALOGIZER_CONFIG,24'h0}: begin
+        bridge_rd_data <= analogizer_bridge_rd_data;
+    end // Analogizer
     default: begin
         bridge_rd_data <= 0;
     end
@@ -696,6 +734,10 @@ reg  [2:0] mapper_sel = 0;
 reg        tms_palette = 0;
 
 localparam [13:0] RESET_PULSE = 14'd8000;  // ~108 us at 74.25 MHz
+reg        ena_analogizer = 0;
+reg        ena_sms_snac = 0;
+reg        ena_gen_snac = 0;
+
 reg [13:0] reset_counter = 0;
 wire       core_reset = (reset_counter != 0);
 
@@ -721,6 +763,8 @@ always @(posedge clk_74a) begin
         32'h000000A0: begin mapper_sel <= bridge_wr_data[2:0]; reset_counter <= RESET_PULSE; end
         32'h000000A4: tms_palette  <= bridge_wr_data[0];
         32'hF0000000: reset_counter <= RESET_PULSE;
+        32'hf2000000: {ena_gen_snac,ena_sms_snac,ena_analogizer} <= bridge_wr_data[2:0];
+        32'hF0000000: reset_counter <= 14'd8000;  // ~108 us at 74.25 MHz
         endcase
     end
 end
@@ -745,8 +789,19 @@ wire       dataslot_allcomplete_s;
 synch_3 #(.WIDTH(18)) settings_sync (
     {downloading,   mode,   region,   fm_disable,   sprites_all,   gg_ext_res,   pal,   blank_border,   bios_disable,   link_enable,   mapper_sel,   tms_palette,   reset_n,   core_reset,   dataslot_allcomplete},
     {downloading_s, mode_s, region_s, fm_disable_s, sprites_all_s, gg_ext_res_s, pal_s, blank_border_s, bios_disable_s, link_enable_s, mapper_sel_s, tms_palette_s, reset_n_s, core_reset_s, dataslot_allcomplete_s},
-    clk_sys
+	 clk_sys
 );
+
+wire ena_analogizer_s;
+wire ena_sms_snac_s;
+wire ena_gen_snac_s;
+
+synch_3 #(3) analogizer_ena_sync({ena_gen_snac,ena_sms_snac,ena_analogizer}, {ena_gen_snac_s,ena_sms_snac_s,ena_analogizer_s}, clk_sys);
+
+//Si ambos SNAC de pad estan habilitados a la vez, Genesis tiene prioridad.
+wire snac_pad_ena = ena_sms_snac_s | ena_gen_snac_s;
+wire sms_mode     = ena_sms_snac_s & ~ena_gen_snac_s;
+
 
 // Configured-pal status (clk_74a -> clk_sys) for the deterministic-reboot reset.
 // pal_r and the in-flight term are fed straight into synch_3 (which registers
@@ -1194,28 +1249,28 @@ spram #(.widthad_a(13)) ram_inst (
 //   face_start → Pause (SMS) / Start (GG), face_select → console RESET
 // ============================================================
 
-wire [31:0] cont1_key_s;
-wire [31:0] cont2_key_s;
-synch_3 #(.WIDTH(32)) cont1_sync (cont1_key, cont1_key_s, clk_sys);
-synch_3 #(.WIDTH(32)) cont2_sync (cont2_key, cont2_key_s, clk_sys);
+// wire [31:0] cont1_key_s;
+// wire [31:0] cont2_key_s;
+// synch_3 #(.WIDTH(32)) cont1_sync (cont1_key, cont1_key_s, clk_sys);
+// synch_3 #(.WIDTH(32)) cont2_sync (cont2_key, cont2_key_s, clk_sys);
 
-wire p1_up    = cont1_key_s[0];
-wire p1_down  = cont1_key_s[1];
-wire p1_left  = cont1_key_s[2];
-wire p1_right = cont1_key_s[3];
-wire p1_b1    = cont1_key_s[5];   // face_b
-wire p1_b2    = cont1_key_s[4];   // face_a
-wire p1_start = cont1_key_s[15];
-wire p1_sel   = cont1_key_s[14];
+wire p1_up    = p1_controls[0];
+wire p1_down  = p1_controls[1];
+wire p1_left  = p1_controls[2];
+wire p1_right = p1_controls[3];
+wire p1_b1    = p1_controls[5];   // face_b
+wire p1_b2    = p1_controls[4];   // face_a
+wire p1_start = p1_controls[15];
+wire p1_sel   = p1_controls[14];
 
-wire p2_up    = cont2_key_s[0];
-wire p2_down  = cont2_key_s[1];
-wire p2_left  = cont2_key_s[2];
-wire p2_right = cont2_key_s[3];
-wire p2_b1    = cont2_key_s[5];
-wire p2_b2    = cont2_key_s[4];
-wire p2_start = cont2_key_s[15];
-wire p2_sel   = cont2_key_s[14];
+wire p2_up    = p2_controls[0];
+wire p2_down  = p2_controls[1];
+wire p2_left  = p2_controls[2];
+wire p2_right = p2_controls[3];
+wire p2_b1    = p2_controls[5];
+wire p2_b2    = p2_controls[4];
+wire p2_start = p2_controls[15];
+wire p2_sel   = p2_controls[14];
 
 wire pause_n = ~(p1_start | p2_start);          // active low at system
 wire soft_reset_btn = p1_sel | p2_sel;          // SMS console RESET button
@@ -1226,11 +1281,11 @@ wire soft_reset_btn = p1_sel | p2_sel;          // SMS console RESET button
 // ============================================================
 
 wire [8:0]  vx;
-wire [8:0]  vy;
+(* keep *) wire [8:0]  vy;
 wire [11:0] color;
 wire        mask_column;
 wire        smode_M1, smode_M2, smode_M3;
-wire        HS, VS, HBlank, VBlank;
+(* keep *) wire        HS, VS, HBlank, VBlank;
 wire [15:0] audio_l, audio_r;
 
 // ce inputs gated by ss_freeze exactly as MiSTer SMS.sv does — pauses the
@@ -1264,13 +1319,13 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .rom_a      ( ram_addr ),
     .rom_do     ( ram_dout ),
 
-    .j1_up      ( ~p1_up ),
-    .j1_down    ( ~p1_down ),
-    .j1_left    ( ~p1_left ),
-    .j1_right   ( ~p1_right ),
-    .j1_tl      ( ~p1_b1 ),
-    .j1_tr      ( ~p1_b2 ),
-    .j1_th      ( 1'b1 ),
+    .j1_up      ( (ena_gen_snac_s) ? gen_up_n            : (sms_mode) ? sms_up_state       : ~p1_up    ),
+    .j1_down    ( (ena_gen_snac_s) ? gen_down_n          : (sms_mode) ? sms_down_state     : ~p1_down  ),
+    .j1_left    ( (ena_gen_snac_s) ? gen_left_n          : (sms_mode) ? sms_left_state     : ~p1_left  ),
+    .j1_right   ( (ena_gen_snac_s) ? gen_right_n         : (sms_mode) ? sms_right_state    : ~p1_right ),
+    .j1_tl      ( (ena_gen_snac_s) ? (gen_a_n & gen_b_n & gen_y_n) : (sms_mode) ? sms_btn1_state     : ~p1_b1    ), //Genesis: A, B o Y -> boton 1
+    .j1_tr      ( (ena_gen_snac_s) ? (gen_c_n & gen_z_n)           : (sms_mode) ? sms_btn2_state     : ~p1_b2    ), //Genesis: C o Z -> boton 2
+    .j1_th      ( (sms_mode)       ? sms_lightgun_state  : 1'b1      ),
     .j1_start   ( 1'b0 ),
     .j1_coin    ( 1'b0 ),
     .j1_a3      ( 1'b0 ),
@@ -1286,8 +1341,9 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .j2_coin    ( 1'b0 ),
     .j2_a3      ( 1'b0 ),
 
-    .pause      ( pause_n ),
-    .soft_reset ( soft_reset_btn ),
+    .pause      ( (ena_gen_snac_s) ? gen_start_n : (sms_mode) ? ~start_pulse : pause_n ), //Genesis: Start real -> pause
+    //.soft_reset ( soft_reset_btn ),
+    .soft_reset ( 1'b0 ),
 
     .E0Type     ( 2'b00 ),
     .E1Use      ( 1'b0 ),
@@ -1407,6 +1463,152 @@ video video (
     .vsync      ( VS ),
     .hblank     ( HBlank ),
     .vblank     ( VBlank )
+);
+
+//Video signals for Analogizer 
+logic HSync,VSync;
+
+always @(posedge clk_sys) begin
+	HSync <= HS;
+	if(~HSync & HS) VSync <= VS;
+end
+
+wire [7:0] vid_r = {2{color[3:0]}};
+wire [7:0] vid_g = {2{color[7:4]}};
+wire [7:0] vid_b = {2{color[11:8]}};
+
+//Logic for SMS SNAC game controller based on hsync period
+logic old_hs=1'b0;
+logic sms_up_state, sms_down_state, sms_left_state, sms_right_state, sms_btn1_state, sms_btn2_state, sms_lightgun_state;
+logic sms_bank0_dir = 1'b0;
+logic sms_bank1_dir = 1'b1; //arranque en salida: bank1 lleva video DAC, nunca debe quedarse en entrada
+logic sms_pin30_dir = 1'b0;
+logic sms_pin31_dir = 1'b0;
+
+(* preserve *) logic sms_capturing=1'b0;
+
+always @(posedge clk_sys) begin
+        if(ce_pix) begin
+            old_hs <= HS;
+            //TH is keep always as input and continuosly capture in each pixel clock
+            sms_lightgun_state <= cart_tran_bank0[7]; // TH         7         RX+             IN4                        bank0[7]
+        end
+        //we are capturing data input  two times per frame, we choose a couple of times throughout a frame, more or less evenly spaced
+        //this keep gamepad button status capture at ~100-120Hz rate depending on whether it is a PAL or NTSC system
+        //Gated with sms_mode: con SMS SNAC deshabilitado (o Genesis activo, que
+        //tiene prioridad) este bloque no debe tocar sms_bank1_dir (antes flipaba
+        //bank1 a entrada en vy==40/160 aunque el menu lo tuviera en Off).
+        if (!sms_mode) begin
+            sms_bank1_dir <= 1'b1;
+            sms_capturing <= 1'b0;
+        end
+        else if ((vy == 9'd40) || (vy == 9'd160)) begin
+            //begin data capture synchronized with the start of horizontal synchronization pulse
+            if (HS & !old_hs) begin
+                sms_capturing <= 1'b1;
+            end 
+
+            if (sms_capturing) begin
+                if(snac_ch1) begin
+                    // Change SNAC related pins direcction to input
+                    sms_bank1_dir <= 1'b0;
+                    sms_bank0_dir <= 1'b0; 
+                    sms_pin30_dir <= 1'b0;
+                    sms_pin31_dir <= 1'b0;  
+                end
+                else if(snac_cap) begin
+                    // Uses Analogizer B configuration
+                    // wait for the port to settle and read port  value     
+                    //                                           ACTION     DB9 PIN   SNAC USB3 PIN   ANALOGIZER PIN (CONF. A)   POCKET CARTRIDGE PIN
+                    sms_down_state     <= cart_tran_bank1[7]; // UP         1         D-              OUT1                       bank1[7]                 
+                    sms_up_state       <= cart_tran_bank1[6]; // DOWN       2         D+              OUT2                       bank1[6]                   
+                    sms_left_state     <= cart_tran_pin30; // LEFT       3         RX-             IO3                           pin30
+                    sms_right_state    <= cart_tran_bank0[6];    // RIGHT      4         GND_D           IO5                     bank0[6]
+                    sms_btn1_state     <= cart_tran_pin31;    // TL(BTN1)   6         TX-             IO6                        pin31
+                    sms_btn2_state     <= cart_tran_bank0[5]; // TR(BTN2)   9         TX+             IN7                        bank0[5]            
+                end
+                else if(snac_ch2) begin
+                    // Change Bank0 direcction to output
+                    // Change SNAC related pins direcction to output
+                    // remaining pins keep as inputs
+                    sms_bank1_dir <= 1'b1; //change to input
+                    sms_bank0_dir <= 1'b0; 
+                    sms_pin30_dir <= 1'b0;
+                    sms_pin31_dir <= 1'b0;     
+                    sms_capturing <= 1'b0; 
+                end
+            end
+        end
+end
+
+logic start_pulse;
+
+start_combo  #(.CLK_FREQ_HZ(53_693_175)) start_as_btn1_plus_btn2 (
+    .clk(clk_sys),
+    .rst_n(~reset_active),        // reset asíncrono, activo a nivel bajo
+    .btn1_raw(~sms_btn1_state ),     // botón 1, activo alto, señal asíncrona externa
+    .btn2_raw(~sms_btn2_state ),     // botón 2, activo alto, señal asíncrona externa
+
+    .start_pulse(start_pulse),  // pulso emulado de Start (activo alto, START_PULSE_MS de ancho)
+    .combo_active()  // '1' mientras se está contando el hold (útil para debug/LED)
+);
+
+//------------------------------------------------------------------------------
+// Lector SNAC de mando SEGA Genesis/Mega Drive (3 y 6 botones, autodeteccion).
+// Requiere el cable harness Genesis (RX+ <-> TX- cruzados): SEL sale por pin31
+// y TL entra por bank0[7]. Comparte el generador de ventanas snac_ch1/cap/ch2
+// con el modo SMS: cada fase de la secuencia ocupa una linea con su propia
+// ventana de bank1, asi que la danza con el flanco de video_clk al DAC queda
+// intacta. La secuencia completa de 6 botones (8 lineas, ~508 us) se ejecuta
+// siempre; un pad de 3 botones falla la firma de identificacion y los botones
+// extendidos quedan a soltado (six_button=0).
+//------------------------------------------------------------------------------
+logic gen_sel, gen_bank1_dir;
+logic gen_up_n, gen_down_n, gen_left_n, gen_right_n;
+logic gen_a_n, gen_b_n, gen_c_n, gen_start_n;
+logic gen_x_n, gen_y_n, gen_z_n, gen_mode_n;   //solo validos con six_button=1
+logic gen_six_button;
+
+genesis_snac_reader #(
+    .SAMPLE_LINE1(9'd40),
+    .SAMPLE_LINE2(9'd160)
+) gen_pad (
+    .clk        (clk_sys),
+    .rst        (reset_active),
+    .ena        (ena_gen_snac_s),
+
+    .ce_pix     (ce_pix),
+    .HS         (HS),
+    .vy         (vy),
+
+    .snac_ch1   (snac_ch1),
+    .snac_cap   (snac_cap),
+    .snac_ch2   (snac_ch2),
+
+    //lecturas directas de los pads fisicos del cartucho
+    .bank1_in   (cart_tran_bank1),
+    .pin30_in   (cart_tran_pin30),
+    .bank0_7_in (cart_tran_bank0[7]),
+    .bank0_6_in (cart_tran_bank0[6]),
+    .bank0_5_in (cart_tran_bank0[5]),
+
+    .sel        (gen_sel),
+    .bank1_dir  (gen_bank1_dir),
+
+    .up_n       (gen_up_n),
+    .down_n     (gen_down_n),
+    .left_n     (gen_left_n),
+    .right_n    (gen_right_n),
+    .a_n        (gen_a_n),
+    .b_n        (gen_b_n),
+    .c_n        (gen_c_n),
+    .start_n    (gen_start_n),
+
+    .x_n        (gen_x_n),
+    .y_n        (gen_y_n),
+    .z_n        (gen_z_n),
+    .mode_n     (gen_mode_n),
+    .six_button (gen_six_button)
 );
 
 
@@ -1573,5 +1775,279 @@ audio_mixer #(
     .audio_lrck ( audio_lrck ),
     .audio_dac  ( audio_dac )
 );
+
+
+// ============================================================
+// Section 13: Analogizer
+// ============================================================
+/*[ANALOGIZER_HOOK_BEGIN]*/
+    //reg analogizer_ena;
+    wire [3:0] analogizer_video_type;
+    wire [4:0] snac_game_cont_type;
+    wire [3:0] snac_cont_assignment;
+    wire       pocket_blank_screen;
+
+    wire analogizer_ena;
+    assign analogizer_ena = ena_analogizer_s; //mod_sw0[0]; //setting from Pocket Menu
+
+    //switch between Analogizer SNAC and Pocket Controls for P1-P4 (P3,P4 when uses PCEngine Multitap)
+    wire [15:0] p1_btn, p2_btn, p3_btn, p4_btn;
+    wire [31:0] p1_joy, p2_joy;
+    reg [31:0] p1_joystick, p2_joystick;
+    reg  [15:0] p1_controls, p2_controls;
+
+    wire snac_is_analog = (snac_game_cont_type == 5'h12) || (snac_game_cont_type == 5'h13);
+
+    //! Player 1 ---------------------------------------------------------------------------
+    reg p1_up_snac, p1_down_snac, p1_left_snac, p1_right_snac;
+    wire p1_up_analog, p1_down_analog, p1_left_analog, p1_right_analog;
+    //using left analog joypad
+    assign p1_up_analog    = (p1_joy[15:8] < 8'h40) ? 1'b1 : 1'b0; //analog range UP 0x00 Idle 0x7F DOWN 0xFF, DEADZONE +- 0x15
+    assign p1_down_analog  = (p1_joy[15:8] > 8'hC0) ? 1'b1 : 1'b0; 
+    assign p1_left_analog  = (p1_joy[7:0]  < 8'h40) ? 1'b1 : 1'b0; //analog range LEFT 0x00 Idle 0x7F RIGHT 0xFF, DEADZONE +- 0x15
+    assign p1_right_analog = (p1_joy[7:0]  > 8'hC0) ? 1'b1 : 1'b0;
+
+    always @(posedge clk_74a) begin
+        p1_up_snac    <= (snac_is_analog) ? p1_up_analog    : p1_btn[0];
+        p1_down_snac  <= (snac_is_analog) ? p1_down_analog  : p1_btn[1];
+        p1_left_snac  <= (snac_is_analog) ? p1_left_analog  : p1_btn[2];
+        p1_right_snac <= (snac_is_analog) ? p1_right_analog : p1_btn[3];
+    end
+    //! Player 2 ---------------------------------------------------------------------------
+    reg p2_up_snac, p2_down_snac, p2_left_snac, p2_right_snac;
+    wire p2_up_analog, p2_down_analog, p2_left_analog, p2_right_analog;
+    //using left analog joypad
+    assign p2_up_analog    = (p2_joy[15:8] < 8'h40) ? 1'b1 : 1'b0; //analog range UP 0x00 Idle 0x7F DOWN 0xFF, DEADZONE +- 0x15
+    assign p2_down_analog  = (p2_joy[15:8] > 8'hC0) ? 1'b1 : 1'b0; 
+    assign p2_left_analog  = (p2_joy[7:0]  < 8'h40) ? 1'b1 : 1'b0; //analog range LEFT 0x00 Idle 0x7F RIGHT 0xFF, DEADZONE +- 0x15
+    assign p2_right_analog = (p2_joy[7:0]  > 8'hC0) ? 1'b1 : 1'b0;
+
+    always @(posedge clk_74a) begin
+        p2_up_snac    <= (snac_is_analog) ? p2_up_analog    : p2_btn[0];
+        p2_down_snac  <= (snac_is_analog) ? p2_down_analog  : p2_btn[1];
+        p2_left_snac  <= (snac_is_analog) ? p2_left_analog  : p2_btn[2];
+        p2_right_snac <= (snac_is_analog) ? p2_right_analog : p2_btn[3];
+    end
+    always @(posedge clk_74a) begin
+        reg [31:0] p1_pocket_btn, p1_pocket_joy;
+        reg [31:0] p2_pocket_btn, p2_pocket_joy;
+
+        if((snac_game_cont_type == 5'h0) || !analogizer_ena) begin //SNAC is disabled
+        //if((snac_game_cont_type == 5'h0)) begin //SNAC is disabled
+            p1_controls <= cont1_key;
+            p2_controls <= cont2_key;
+        end
+        else begin
+        case(snac_cont_assignment[1:0])
+        2'h0:    begin  //SNAC P1 -> Pocket P1
+            p1_controls <= {p1_btn[15:4],p1_right_snac,p1_left_snac,p1_down_snac,p1_up_snac};
+            p2_controls <= cont1_key;
+            end
+        2'h1: begin  //SNAC P1 -> Pocket P2
+            p1_controls <= cont1_key;
+            p2_controls <= p1_btn;
+            end
+        2'h2: begin //SNAC P1 -> Pocket P1, SNAC P2 -> Pocket P2
+            p1_controls <= {p1_btn[15:4],p1_right_snac,p1_left_snac,p1_down_snac,p1_up_snac};
+            p2_controls <= {p2_btn[15:4],p2_right_snac,p2_left_snac,p2_down_snac,p2_up_snac};
+            end
+        2'h3: begin //SNAC P1 -> Pocket P2, SNAC P2 -> Pocket P1
+            p1_controls <= {p2_btn[15:4],p2_right_snac,p2_left_snac,p2_down_snac,p2_up_snac};
+            p2_controls <= {p1_btn[15:4],p1_right_snac,p1_left_snac,p1_down_snac,p1_up_snac};
+            end
+        default: begin 
+            p1_controls <= cont1_key;
+            p2_controls <= cont2_key;
+            end
+        endcase
+        end
+    end
+
+    wire [15:0] p1_btn_CK, p2_btn_CK;
+    wire [31:0] p1_joy_CK, p2_joy_CK;
+    synch_3 #(
+    .WIDTH(16)
+    ) p1b_s (
+        p1_btn_CK,
+        p1_btn,
+        clk_74a
+    );
+
+    synch_3 #(
+        .WIDTH(16)
+    ) p2b_s (
+        p2_btn_CK,
+        p2_btn,
+        clk_74a
+    );
+
+    synch_3 #(
+    .WIDTH(32)
+    ) p3b_s (
+        p1_joy_CK,
+        p1_joy,
+        clk_74a
+    );
+        
+    synch_3 #(
+        .WIDTH(32)
+    ) p4b_s (
+        p2_joy_CK,
+        p2_joy,
+        clk_74a
+    );
+
+
+    // Video Y/C Encoder settings
+    // Follows the Mike Simone Y/C encoder settings:
+    // https://github.com/MikeS11/MiSTerFPGA_YC_Encoder
+    // SET PAL and NTSC TIMING and pass through status bits. ** YC must be enabled in the qsf file **
+    wire [39:0] CHROMA_PHASE_INC;
+    wire [26:0] COLORBURST_RANGE;
+
+    wire PALFLAG;
+
+    parameter NTSC_REF = 3.579545;   
+    parameter PAL_REF = 4.43361875;
+
+    // Parameters to be modifed
+    parameter CLK_VIDEO_NTSC = 53.693175; // Must be filled E.g XX.X Hz - CLK_VIDEO
+    parameter CLK_VIDEO_PAL  = 53.203424; // Must be filled E.g XX.X Hz - CLK_VIDEO
+
+    localparam [39:0] NTSC_PHASE_INC1 = 40'd73_300_775_185; // ((NTSC_REF * 2^40) / CLK_VIDEO_NTSC)
+                                            
+    localparam [39:0] PAL_PHASE_INC1  = 40'd91_625_970_704; // ((PAL_REF * 2^40) / CLK_VIDEO_PAL)
+
+	localparam [6:0] COLORBURST_START1 = (3.7 * (CLK_VIDEO_NTSC/NTSC_REF));
+	localparam [9:0] COLORBURST_NTSC_END1 = (9 * (CLK_VIDEO_NTSC/NTSC_REF)) + COLORBURST_START1;
+	localparam [9:0] COLORBURST_PAL_END1 = (10 * (CLK_VIDEO_PAL/PAL_REF)) + COLORBURST_START1;
+
+
+    assign PALFLAG = pal_machine; //Based on Core Pocket menu, bypass Analogizer settings 
+
+	 always @(posedge clk_sys) begin
+		 CHROMA_PHASE_INC <= PALFLAG ? PAL_PHASE_INC1 : NTSC_PHASE_INC1; 
+		 COLORBURST_RANGE <= {COLORBURST_START1, COLORBURST_NTSC_END1, COLORBURST_PAL_END1};
+	 end
+
+    //53_693_175 - 53_203_424 MHz
+    wire [31:0] analogizer_bridge_rd_data;
+    wire busy;
+    wire VIDEO_DE = ~(HBlank | VBlank);
+
+    wire [7:0] analog_bank1_data;   // byte completo de bank1 del Analogizer: {OUT1,OUT2,video_clk,B[5:1]}
+
+    // bank1: vídeo+SNAC salida, con ventana breve de entrada para leer up/down del pad.
+    // - SNAC pad ON (SMS o Genesis): bits [7:6] a '1' (precarga/idle alto) y ventana de
+    //   lectura gobernada por el modo activo (Genesis tiene prioridad).
+    // - SNAC pad OFF: se pasa el byte COMPLETO del Analogizer. Bits [7:6] = OUT1/OUT2,
+    //   señales serie de salida del SNAC (p.ej. CLK/CMD del PSX). Direccion fija a salida.
+    wire bank1_dir_eff = (ena_gen_snac_s) ? gen_bank1_dir :
+                         (sms_mode)       ? sms_bank1_dir : 1'b1;
+    wire [7:0] bank1_drive = (snac_pad_ena) ? { 2'b11, analog_bank1_data[5:0] }
+                                            : analog_bank1_data;
+    assign cart_tran_bank1_dir = bank1_dir_eff;                                   // 1=salida, 0=ventana lectura
+    assign cart_tran_bank1     = bank1_dir_eff ? bank1_drive : 8'bZ;              // ÚNICO driver del pin
+
+    // bank0[7:4], pin30:
+    // - SNAC pad ON (SMS o Genesis): entradas puras, la logica del pad lee los pads.
+    // - SNAC pad OFF: tri-state inferido AQUI, sobre los pads reales, gobernado por el
+    //   dir del Analogizer. El camino de entrada al Analogizer va directo del pad.
+    assign cart_tran_bank0_dir = (snac_pad_ena) ? 1'b0 : analogizer_bank0_dir;
+    assign cart_tran_bank0     = (snac_pad_ena) ? 4'bZ : (analogizer_bank0_dir ? analogizer_bank0_out : 4'bZ);
+    assign cart_tran_pin30_dir = (snac_pad_ena) ? 1'b0 : analogizer_pin30_dir;
+    assign cart_tran_pin30     = (snac_pad_ena) ? 1'bZ : (analogizer_pin30_dir ? analogizer_pin30_out : 1'bZ);
+    // pin31:
+    // - Genesis SNAC ON: SALIDA, conduce la linea SEL/TH del pad (harness Genesis).
+    // - SMS SNAC ON    : entrada pura (TL/boton 1 con el cable SMS).
+    // - SNAC pad OFF   : lo gobierna el Analogizer.
+    assign cart_tran_pin31_dir = (ena_gen_snac_s) ? 1'b1 :
+                                 (sms_mode)       ? 1'b0 : analogizer_pin31_dir;
+    assign cart_tran_pin31     = (ena_gen_snac_s) ? gen_sel :
+                                 (sms_mode)       ? 1'bZ    : (analogizer_pin31_dir ? analogizer_pin31_out : 1'bZ);
+
+
+    wire       analogizer_bank0_dir, analogizer_pin30_dir, analogizer_pin31_dir;
+    wire [7:4] analogizer_bank0_out;
+    wire       analogizer_pin30_out, analogizer_pin31_out;
+    openFPGA_Pocket_Analogizer #(.MASTER_CLK_FREQ(53_693_175), .LINE_LENGTH(300), .ADDRESS_ANALOGIZER_CONFIG(ADDRESS_ANALOGIZER_CONFIG)) analogizer (
+        .clk_74a(clk_74a),
+        .i_clk(clk_sys),
+        .i_rst_apf(reset_active), //i_rst_apf is active high
+        .i_rst_core(reset_active), //i_rst_core is active high
+        .i_ena(analogizer_ena),
+        //.i_ena(1'b1),
+
+        //Video interface
+        //.video_clk(clk_vid),
+        .video_clk(clk_sys),
+        .R(vid_r),
+        .G(vid_g),
+        .B(vid_b),
+        .Hblank(HBlank) ,
+        .Vblank(VBlank),
+        .Hsync(HSync), //composite SYNC on HSync.
+        .Vsync(VSync),
+        // .video_clk(clk_sys),
+        // .R(video_r_core),
+        // .G(video_g_core),
+        // .B(video_b_core),
+        // .Hblank(hblank_core),
+        // .Vblank(vblank_core),
+        // .Hsync(hsync_core), //composite SYNC on HSync.
+        // .Vsync(vsync_core),
+        //openFPGA Bridge interface
+        .bridge_endian_little(bridge_endian_little),
+        .bridge_addr(bridge_addr),
+        .bridge_rd(bridge_rd),
+        .analogizer_bridge_rd_data(analogizer_bridge_rd_data),
+        .bridge_wr(bridge_wr),
+        .bridge_wr_data(bridge_wr_data),
+
+        //Analogizer settings
+        .snac_game_cont_type_out(snac_game_cont_type),
+        .snac_cont_assignment_out(snac_cont_assignment),
+        .analogizer_video_type_out(analogizer_video_type),
+        .SC_fx_out(),
+        .pocket_blank_screen_out(pocket_blank_screen),
+        .analogizer_osd_out(),
+
+        //Video Y/C Encoder interface
+        .CHROMA_PHASE_INC(CHROMA_PHASE_INC),
+        .COLORBURST_RANGE(COLORBURST_RANGE),
+        .CHROMA_ADD(0),
+        .CHROMA_MUL(0),
+        .PALFLAG(PALFLAG),
+        //Video SVGA Scandoubler interface
+        .ce_pix(clk_vid),
+        .scandoubler(1'b1), //logic for disable/enable the scandoubler
+        //SNAC interface
+        .p1_btn_state(p1_btn_CK),
+        .p1_joy_state(p1_joy_CK),
+        .p2_btn_state(p2_btn_CK),  
+        .p2_joy_state(p2_joy_CK),
+        .p3_btn_state(),
+        .p4_btn_state(),  
+        .busy(busy),    
+        //Pocket Analogizer IO interface to the Pocket cartridge port
+        .cart_tran_bank2(cart_tran_bank2),
+        .cart_tran_bank2_dir(cart_tran_bank2_dir),
+        .cart_tran_bank3(cart_tran_bank3),
+        .cart_tran_bank3_dir(cart_tran_bank3_dir),
+        .cart_tran_bank0_out(analogizer_bank0_out),
+        .cart_tran_bank0_in(cart_tran_bank0),          //lectura directa del pad
+        .cart_tran_bank0_dir(analogizer_bank0_dir),
+        .cart_tran_pin30_out(analogizer_pin30_out),
+        .cart_tran_pin30_in(cart_tran_pin30),          //lectura directa del pad
+        .cart_tran_pin30_dir(analogizer_pin30_dir),
+        .cart_pin30_pwroff_reset(cart_pin30_pwroff_reset),
+        .cart_tran_pin31_out(analogizer_pin31_out),
+        .cart_tran_pin31_in(cart_tran_pin31),          //lectura directa del pad
+        .cart_tran_pin31_dir(analogizer_pin31_dir),
+        //debug
+        .o_stb(),
+        .o_bank1_data(analog_bank1_data)
+    );
+    /*[ANALOGIZER_HOOK_END]*/
 
 endmodule

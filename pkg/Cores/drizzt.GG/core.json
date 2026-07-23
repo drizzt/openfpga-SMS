@@ -2,9 +2,7 @@
   "core": {
     "magic": "APF_VER_1",
     "metadata": {
-      "platform_ids": [
-        "gg"
-      ],
+    "platform_ids": ["gg","analogizer"],
       "shortname": "GG",
       "description": "Sega Game Gear",
       "author": "drizzt",
@@ -22,7 +20,7 @@
       },
       "hardware": {
         "link_port": true,
-        "cartridge_adapter": -1
+        "cartridge_adapter": 0
       },
       "chip32_vm": "chip32.bin"
     },

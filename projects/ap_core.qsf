@@ -825,6 +825,10 @@ set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 # APF framework (via QIP)
 set_global_assignment -name QIP_FILE ../platform/pocket/apf.qip
 
+# analogizer
+set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/analogizer/yc_out_legacy.sv
+set_global_assignment -name QIP_FILE ../target/pocket/analogizer/analogizer.qip
+
 # Core integration
 set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/core_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/video_sms.sv

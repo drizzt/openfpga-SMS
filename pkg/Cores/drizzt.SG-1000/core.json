@@ -2,9 +2,7 @@
   "core": {
     "magic": "APF_VER_1",
     "metadata": {
-      "platform_ids": [
-        "sg1000"
-      ],
+      "platform_ids": ["sg1000","analogizer"],
       "shortname": "SG-1000",
       "description": "Sega SG-1000",
       "author": "drizzt",
@@ -22,7 +20,7 @@
       },
       "hardware": {
         "link_port": false,
-        "cartridge_adapter": -1
+        "cartridge_adapter": 0
       },
       "chip32_vm": "chip32.bin"
     },

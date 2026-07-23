@@ -1,0 +1,10 @@
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) char_ram_dualport.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) osd_overlay_4bpp.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) osd_font_rom_4bpp.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) osd_timer.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) video_timing_tracker.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) bin_to_ascii_writer.sv]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) string_to_ram_writer.sv]
+set_global_assignment -name VERILOG_FILE [file join $::quartus(qip_path)Binary_to_BCD.v]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) osd_top.sv]
+
