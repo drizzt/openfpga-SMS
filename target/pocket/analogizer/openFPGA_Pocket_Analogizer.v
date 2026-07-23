@@ -379,7 +379,7 @@ end
 		.ypbpr_en(1'b1),
 		.csync(ANALOGIZER_CSYNC),
 		.de(ANALOGIZER_DE),
-		.din({R_fix[7:0],G_fix[7:0],B_fix[7:0]}), //24 bits input
+		.din({R_fix&{8{ANALOGIZER_DE}},G_fix&{8{ANALOGIZER_DE}},B_fix&{8{ANALOGIZER_DE}}}), //24 bits input
 		.dout({PrOut,Yout,PbOut}), //24 bits output
 		.csync_o(YPbPr_sync),
 		.de_o(YPbPr_blank)
@@ -388,25 +388,6 @@ end
 	wire [15:0] yc_o ;
 	//wire yc_hs, yc_vs, 
 	wire yc_cs ;
-
-	// yc_out_legacy yc_out
-	// (
-	// 	.clk(i_clk),
-	// 	.PAL_EN(PALFLAG),
-	// 	.PHASE_INC(CHROMA_PHASE_INC),
-	// 	.COLORBURST_RANGE(COLORBURST_RANGE),
-	// 	.MULFLAG(CHROMA_MUL),
-	// 	.CHRADD(CHROMA_ADD),
-	// 	.CHRMUL(CHROMA_MUL),	
-	// 	.hsync(HS),
-	// 	.vsync(VS),
-	// 	.csync(ANALOGIZER_CSYNC),
-	// 	.dout(yc_o),
-	// 	.din({R_fix, G_fix, B_fix}), //24bits input
-	// 	.hsync_o(),
-	// 	.vsync_o(),
-	// 	.csync_o(yc_cs) //24bits output
-	// );
 
 	yc_out yc_out_inst
 	(
@@ -419,7 +400,7 @@ end
 		.csync(ANALOGIZER_CSYNC),
 
 		.dout(yc_o), //warning: 16bits output
-		.din({R_fix, G_fix, B_fix}), //24bits input
+		.din({R_fix&{8{ANALOGIZER_DE}},G_fix&{8{ANALOGIZER_DE}},B_fix&{8{ANALOGIZER_DE}}}), //24bits input
 
 		.hsync_o(),
 		.vsync_o(),
