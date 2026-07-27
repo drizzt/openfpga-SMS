@@ -266,7 +266,7 @@ assign port_tran_sck_dir = 1'b0;
 assign port_tran_sd      = 1'bz;
 assign port_tran_sd_dir  = 1'b0;
 
-// tie off PSRAM — unused (ROM lives in SDRAM, saves in BRAM)
+// tie off PSRAM, unused (ROM lives in SDRAM, saves in BRAM)
 assign cram0_a = 'h0;
 assign cram0_dq = {16{1'bZ}};
 assign cram0_clk = 0;
@@ -291,7 +291,7 @@ assign cram1_we_n = 1;
 assign cram1_ub_n = 1;
 assign cram1_lb_n = 1;
 
-// tie off SRAM — inactive
+// tie off SRAM, inactive
 assign sram_a = 'h0;
 assign sram_dq = {16{1'bZ}};
 assign sram_oe_n  = 1;
@@ -312,16 +312,16 @@ assign vpll_feed = 1'bZ;
 // Power-up NTSC clk_sys = 53.693175 MHz; runtime PLL reconfig switches the
 // whole VCO to PAL (clk_sys = 53.203424 MHz), so all four outputs scale
 // together and stay phase-related.
-wire    clk_sys;            // 53.693175 MHz NTSC / 53.203424 MHz PAL — SMS core domain
-wire    clk_sdram_ph;       // clk_sys, 180 deg — SDRAM clock (DDR-forwarded to pin)
-wire    clk_vid;            // clk_sys/10 — SMS dot clock
-wire    clk_vid_90;         // clk_sys/10, 90 deg — video DDR
+wire    clk_sys;            // 53.693175 MHz NTSC / 53.203424 MHz PAL, SMS core domain
+wire    clk_sdram_ph;       // clk_sys, 180 deg: SDRAM clock (DDR-forwarded to pin)
+wire    clk_vid;            // clk_sys/10, SMS dot clock
+wire    clk_vid_90;         // clk_sys/10, 90 deg: video DDR
 wire    pll_core_locked;
 wire    pll_core_locked_s;
 synch_3 s01(pll_core_locked, pll_core_locked_s, clk_74a);
 
 // Power-on lock gate: the core is held in reset until the PLL first locks,
-// but later lock dips must NOT reset it — the NTSC/PAL reconfig self-resets
+// but later lock dips must NOT reset it: the NTSC/PAL reconfig self-resets
 // the PLL (pll_slf_rst) and briefly drops lock, and MiSTer keeps the core
 // running through that (locked only re-inits the SDRAM controller there).
 reg pll_ever_locked = 0;
@@ -348,10 +348,10 @@ mf_pllbase mp1 (
 // (0 = mode register, written 0 = waitrequest mode; 2 = start).
 // WAIT_FOR_LOCK=1 holds cfg_waitrequest until the PLL relocks; the core
 // keeps running through the brief lock drop (pll_ever_locked above), with
-// only the SDRAM controller re-initializing — MiSTer parity.
+// only the SDRAM controller re-initializing, MiSTer parity.
 //
 // The NTSC K word must match pll_fractional_division in mf_pllbase_0002.v
-// (the PLL's power-up state) — retune both together.
+// (the PLL's power-up state): retune both together.
 localparam [31:0] NTSC_FRAC_K = 32'd2910634261;  // 53.693175 MHz
 localparam [31:0] PAL_FRAC_K  = 32'd2570680398;  // 53.203424 MHz
 
@@ -376,7 +376,7 @@ pll_reconfig pll_reconfig_inst (
 // Reconfig FSM state at module scope so the deterministic-reboot reset block
 // below can synchronize it to clk_sys directly: pal_r = the tv system the PLL
 // is being driven to; (state != 0) | cfg_waitrequest = a reconfig is in flight.
-// No intermediate clk_74a registers — synch_3 already registers its input, and
+// No intermediate clk_74a registers: synch_3 already registers its input, and
 // keeping these off the marginal pll_reconfig domain avoids the STA hit the
 // earlier pal_cfg/pal_busy pre-registers caused (which had forced a SEED reroll).
 reg [2:0] state = 0;
@@ -411,10 +411,10 @@ always @(posedge clk_74a) begin
     // (the restart's state <= 1 overrides the increment above) and the
     // start write never commits a stale K. Held off until the download
     // path is quiescent: the reconfig glitches clk_sys/the SDRAM clock and
-    // the controller drops in-flight ROM writes while re-initializing —
+    // the controller drops in-flight ROM writes while re-initializing:
     // the persisted PAL setting is replayed by the OS at launch and can
-    // otherwise overlap the ROM stream. (The opposite order — reconfig
-    // triggered just before a download — is safe by construction: relock
+    // otherwise overlap the ROM stream. (The opposite order, reconfig
+    // triggered just before a download, is safe by construction: relock
     // completes in well under a millisecond, while the Chip32 still has
     // ms-scale file-open work before the first cart byte arrives.)
     if (pal != pal_r && dl_quiet == 0) begin
@@ -424,7 +424,7 @@ always @(posedge clk_74a) begin
 end
 
 // The Chip32 downloading=0 write can land before the data_loader FIFO tail
-// drains to SDRAM (documented invariant — see Section 5), so the flag alone
+// drains to SDRAM (documented invariant, see Section 5), so the flag alone
 // is not quiescence: hold the reconfig off for ~1.8 ms past the falling
 // edge, far beyond any FIFO tail at clkref pacing.
 reg [16:0] dl_quiet = 0;
@@ -442,7 +442,7 @@ pin_ddio_clk dramclk_ddr (
     .dataout  ( dram_clk )
 );
 
-// Clock enables — replicated verbatim from MiSTer SMS.sv.
+// Clock enables, replicated verbatim from MiSTer SMS.sv.
 // clkd counts 0..29 on negedge clk_sys:
 //   ce_vdp ÷5, ce_pix ÷10, ce_cpu ÷15 (phase at 9/24 for VDPTEST), ce_sp ÷2
 reg ce_cpu;
@@ -668,8 +668,8 @@ always @(*) begin
 end
 
 // ---- Control registers (clk_74a domain) ----
-// 0x00000000  downloading flag — written 1/0 by Chip32 around the cart loadf
-// 0x00000004  mode: 0=sms, 1=gg, 2=sg1000 — written by Chip32 before loading
+// 0x00000000  downloading flag, written 1/0 by Chip32 around the cart loadf
+// 0x00000004  mode: 0=sms, 1=gg, 2=sg1000, written by Chip32 before loading
 // 0x00000080  region: 0=US/EU (Export), 1=Japan          [interact.json]
 // 0x00000084  FM sound: 0=enabled, 1=disabled            [interact.json]
 // 0x00000088  sprites per line: 0=standard, 1=all        [interact.json]
@@ -787,7 +787,7 @@ synch_2 si_link_sync (.i(port_tran_si), .o(si_sync), .clk(clk_sys), .rise(), .fa
 // Section 4: Reset
 // ============================================================
 
-// Deterministic boot/reboot — the fix for the intermittent PAL BIOS-boot sprite
+// Deterministic boot/reboot: the fix for the intermittent PAL BIOS-boot sprite
 // corruption (Shadow Dancer). Two cooperating ideas, replacing earlier timer
 // guesses that only shifted the probability:
 //
@@ -795,13 +795,13 @@ synch_2 si_link_sync (.i(port_tran_si), .o(si_sync), .clk(clk_sys), .rise(), .fa
 //    the REQUESTED tv system (pal_cfg_s == pal_s) with no reconfig in flight
 //    (pal_busy_s). One term covers the whole pal path: the ~1.8 ms dl_quiet
 //    deferral, the reconfig + relock, and an unbounded-late OS replay of the
-//    persisted setting — each just becomes one clean, held reboot. A live
+//    persisted setting: each just becomes one clean, held reboot. A live
 //    NTSC<->PAL toggle is thus a clean atomic reboot, never a mid-frame flip.
 //
 //  * phase_hold delays the FINAL release until video.vhd is at frame top
 //    (vx==vy==0). video.vhd has no reset and free-runs, so otherwise the CPU
 //    leaves reset at a RANDOM scanline and the BIOS->cart handoff lands at a
-//    random phase — the root cause (Reset Core reproduces it identically, with
+//    random phase: the root cause (Reset Core reproduces it identically, with
 //    no reconfig at all). Pinning the release phase makes every cold boot AND
 //    every Reset Core start mboot at the same scan position, so a BIOS-dependent
 //    cart's one-time sprite-VRAM setup lands in the same safe part of the frame.
@@ -812,7 +812,7 @@ wire pal_not_ready = (pal_s != pal_cfg_s) | pal_busy_s;
 wire core_hold = ~reset_n_s | core_reset_s | ~pll_ever_locked | downloading_s
                | ~dataslot_allcomplete_s | pal_not_ready;
 
-// WRAM clear on reset (MiSTer SMS.sv pattern; 8 KB — systeme/sc3000 are
+// WRAM clear on reset (MiSTer SMS.sv pattern; 8 KB: systeme/sc3000 are
 // hardwired off, so system.vhd never drives ram_a[13])
 reg [12:0] ram_clr_addr;
 reg        ram_clr_run = 0;
@@ -823,7 +823,9 @@ always @(posedge clk_sys) begin
         ram_clr_run  <= 1'b1;
     end else if (ram_clr_run) begin
         ram_clr_addr <= ram_clr_addr + 1'd1;
-        if (ram_clr_addr == 13'h1FFF) ram_clr_run <= 1'b0;
+        if (ram_clr_addr == 13'h1FFF) begin
+            ram_clr_run <= 1'b0;
+        end
     end
 end
 
@@ -846,7 +848,9 @@ always @(posedge clk_sys) if (reset_active) pal_machine <= pal_s;
 // dbr: high once a cartridge has been loaded (no eject on Pocket)
 reg dbr = 0;
 always @(posedge clk_sys) begin
-    if (downloading_s) dbr <= 1;
+    if (downloading_s) begin
+        dbr <= 1;
+    end
 end
 
 
@@ -864,7 +868,7 @@ wire [15:0] rom_loader_data;
 
 // 16-bit words every >=24 clk_sys cycles: two words per 32-bit APF write
 // (≈48 cycles/word vs ≈54-cycle APF inflow), and the byte FSM drains one
-// 16-bit word in two ce_pix-paced SDRAM windows (≈20 cycles) — both fit.
+// 16-bit word in two ce_pix-paced SDRAM windows (≈20 cycles): both fit.
 data_loader #(
     .ADDRESS_MASK_UPPER_4   ( 4'h1 ),
     .ADDRESS_SIZE           ( 28 ),
@@ -956,7 +960,9 @@ always @(posedge clk_sys) begin
             end
         end
         2'd2: begin
-            if (rom_wr == sd_wrack) rom_ld_state <= 2'd0;
+            if (rom_wr == sd_wrack) begin
+                rom_ld_state <= 2'd0;
+            end
         end
         default: rom_ld_state <= 0;
         endcase
@@ -1053,7 +1059,7 @@ sdram ram (
 // running (Pocket analogue of MiSTer's ss_state_allowed = dbr | ss_bios_mode).
 // dbr goes high at download start and never clears here, so the cart case
 // covers runtime; the extra guards also forbid SS while the boot ROM scans
-// slots. savestates.sv hangs waiting for a Z80 instruction boundary otherwise —
+// slots. savestates.sv hangs waiting for a Z80 instruction boundary otherwise:
 // the controller errors out instead.
 wire        allow_ss = dbr & ~reset_active & ~downloading_s & dataslot_allcomplete_s;
 
@@ -1147,7 +1153,7 @@ data_unloader #(
     .read_data          ( save_unloader_data )
 );
 
-// Port A: system core access — taken over by savestates during ss_freeze
+// Port A: system core access, taken over by savestates during ss_freeze
 // (Dahjee A expansion RAM snapshot, lower 8 KB only, mirrors MiSTer SMS.sv).
 // Port B: save load (boot) / unload (writeback).
 // The Pocket OS sequences load and unload, so a simple address mux suffices.
@@ -1233,7 +1239,7 @@ wire        smode_M1, smode_M2, smode_M3;
 wire        HS, VS, HBlank, VBlank;
 wire [15:0] audio_l, audio_r;
 
-// ce inputs gated by ss_freeze exactly as MiSTer SMS.sv does — pauses the
+// ce inputs gated by ss_freeze exactly as MiSTer SMS.sv does: pauses the
 // emulated machine during a state save/load; the video instance below and
 // the sdram clkref keep their ungated ce's so timing keeps running.
 system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (

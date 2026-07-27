@@ -80,7 +80,7 @@ module audio_mixer #(
   //! CDC is handled by audio_filters' 2-cycle stability check,
   //! matching MiSTer's audio_out.v approach: core_l/core_r from clk_sys are
   //! registered twice at audio_mclk and only accepted when stable.
-  //! IIR low-pass filter removed to conserve ALMs — the Pocket's DAC has
+  //! IIR low-pass filter removed to conserve ALMs: the Pocket's DAC has
   //! built-in oversampling/interpolation. DC blocker and mix retained.
   //! ------------------------------------------------------------------------
   wire [15:0] audio_l, audio_r;

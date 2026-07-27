@@ -1,20 +1,20 @@
 //
-// video_sms.sv — raster output adapter for the Analogue Pocket scaler
+// video_sms.sv, raster output adapter for the Analogue Pocket scaler
 //
 // The SMS VDP is a raster core: video.vhd generates timing (x/y/syncs/blanks)
 // in the clk_sys domain, advancing one pixel per ce_pix (clk_sys/10), and
 // system.vhd returns the 12-bit color for the current x/y. clk_vid is the
 // exact SMS dot clock (5.3693175 MHz = clk_sys/10) from the same PLL VCO,
-// so each clk_vid edge samples exactly one pixel — no framebuffer needed.
+// so each clk_vid edge samples exactly one pixel: no framebuffer needed.
 //
 // Active windows produced by video.vhd (border=0):
 //   SMS/SG 192-line: 256x192      SMS 224-line (M1&M2): 256x224
 //   SMS 240-line (M3&M2): 256x240 GG (ggres=1): 160x144
 // PAL needs no handling here: it only changes total/blanking lines
 // (313-line frames, ~49.7 Hz), the active windows and therefore the
-// scaler slots stay the same — slot selection is mode-register-driven.
+// scaler slots stay the same: slot selection is mode-register-driven.
 //
-// The Pocket scaler does NOT measure the DE window: the core must select
+// The Pocket scaler does not measure the DE window: the core must select
 // the video.json scaler_modes slot itself, by driving the slot index on
 // video_rgb[23:13] (function code 0 = "set scaler slot" on [2:0]) during
 // the blanking cycle right after DE falls. An all-zero blanking value
@@ -50,12 +50,15 @@ module video_sms (
     output wire       video_skip
 );
 
-    // Every clk_vid cycle is a pixel — never skip
+    // Every clk_vid cycle is a pixel, never skip
     assign video_skip = 1'b0;
 
     // Re-register in clk_sys first so the cross-domain path is reg->reg
     reg [11:0] color_r;
-    reg        hs_r, vs_r, hbl_r, vbl_r;
+    reg        hs_r;
+    reg        vs_r;
+    reg        hbl_r;
+    reg        vbl_r;
     reg [2:0]  slot_r;
     always @(posedge clk_sys) begin
         color_r <= color;
@@ -74,7 +77,8 @@ module video_sms (
     wire [7:0] g8 = {2{color_r[7:4]}};
     wire [7:0] b8 = {2{color_r[11:8]}};
 
-    reg hs_d, vs_d;
+    reg hs_d;
+    reg vs_d;
     always @(posedge clk_vid) begin
         if (reset) begin
             video_rgb <= 24'd0;

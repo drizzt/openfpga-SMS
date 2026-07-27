@@ -1,12 +1,12 @@
-// mf_pllbase_0002.v — Cyclone V Fractional-N PLL for SMS core (reconfigurable)
+// mf_pllbase_0002.v, Cyclone V Fractional-N PLL for SMS core (reconfigurable)
 //
 // Input:  74.25 MHz (Pocket clk_74a)
 //
-// Unified PLL (sys_pll_i) — all four clocks from a single fractional PLL:
-//   Out 0:  clk_sys (0 deg)             — SMS system clock
-//   Out 1:  clk_sys (180 deg, 9312 ps)  — SDRAM clock (DDR-forwarded to dram_clk pin)
-//   Out 2:  clk_sys/10 (0 deg)          — Video dot clock
-//   Out 3:  clk_sys/10 (90 deg)         — Video dot clock (DDR)
+// Unified PLL (sys_pll_i): all four clocks from a single fractional PLL:
+//   Out 0:  clk_sys (0 deg)             - SMS system clock
+//   Out 1:  clk_sys (180 deg, 9312 ps)  - SDRAM clock (DDR-forwarded to dram_clk pin)
+//   Out 2:  clk_sys/10 (0 deg)          - Video dot clock
+//   Out 3:  clk_sys/10 (90 deg)         - Video dot clock (DDR)
 //
 // Power-up = NTSC: clk_sys = 53.693175 MHz = 15 × 3.579545 MHz colorburst.
 // PAL (53.203424 MHz) is reached ONLY by runtime reconfiguration through the
