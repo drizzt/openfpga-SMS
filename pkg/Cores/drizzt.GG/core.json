@@ -24,7 +24,7 @@
         "link_port": true,
         "cartridge_adapter": -1
       },
-      "chip32_vm": "chip32.bin"
+      "chip32_vm": "loader.bin"
     },
     "cores": [
       {

@@ -12,10 +12,10 @@ cd "$PROJECT_DIR"
 
 fail=0
 
-# bitstream.rbf_r and chip32.bin are one shared artifact fanned out.
+# bitstream.rbf_r and loader.bin are one shared artifact fanned out.
 # They are build products (gitignored), so absence everywhere is fine
 # (fresh checkout); present in only some packages is drift.
-for bin in bitstream.rbf_r chip32.bin; do
+for bin in bitstream.rbf_r loader.bin; do
   # `|| true`: with set -e + pipefail, a glob that matches nothing makes ls
   # exit non-zero and aborts the script before the "absent everywhere" guard
   # below can run (the case on a fresh checkout, where binaries aren't built).

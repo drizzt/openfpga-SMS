@@ -43,7 +43,7 @@ Separate packages are required because the Pocket file browser always
 opens the Assets folder of the data slot's platform index — it does not
 follow the platform the core was launched from. The system mode is
 selected automatically from the cartridge file extension by the Chip32
-loader (`target/pocket/chip32/chip32.asm`).
+loader (`support/loader.asm`).
 
 ## Controls
 
@@ -101,7 +101,7 @@ images for these platforms, grab them from
 
 ```bash
 ./scripts/build.sh          # bitstream → pkg/Cores/*/bitstream.rbf_r
-./scripts/build_chip32.sh   # chip32.bin → pkg/Cores/*/chip32.bin
+./scripts/build_loader.sh   # loader.bin → pkg/Cores/*/loader.bin
 ```
 
 `build.sh` defaults to Quartus 21.1 (matching the CI/release toolchain). To
@@ -122,7 +122,8 @@ The tree follows the OpenGateware "gateman" layout used by other MiSTer ports
 - `rtl/sms.qip` : selects the subset of `rtl/upstream/` that is compiled.
 - `platform/pocket/` : Analogue Pocket APF framework.
 - `target/pocket/` : the Pocket integration (top level, clocking, video, audio,
-  data loaders, Chip32 loader).
+  data loaders).
+- `support/` : `loader.asm`, the Chip32 loader run by the Pocket OS.
 - `projects/` : the Quartus project (`sms_pocket.qpf`, revision `ap_core`).
 - `pkg/` : the packaged openFPGA cores/assets/platforms.
 

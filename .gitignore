@@ -1,12 +1,15 @@
+# Build products
 build_output/
 pkg/Cores/*/bitstream.rbf_r
-pkg/Cores/*/chip32.bin
+pkg/Cores/*/loader.bin
+platform/pocket/build_id.mif
+platform/pocket/build_id.v
+
+# Quartus
 projects/db/
 projects/incremental_db/
 projects/output_files/
 projects/c5_pin_model_dump.txt
 projects/*assignment_defaults.qdf
-platform/pocket/build_id.mif
-platform/pocket/build_id.v
 *.qws
 *.rpt.bak

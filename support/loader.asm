@@ -9,7 +9,7 @@
 // Structure adapted from agg23/openfpga-wonderswan.
 
 architecture chip32.vm
-output "chip32.bin", create
+output "loader.bin", create
 
 // scratch area in the last 1K of the 8K chip32 memory
 constant rambuf = 0x1b00

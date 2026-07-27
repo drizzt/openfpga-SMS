@@ -6,7 +6,7 @@
 # maps each core to the single-core zip it was found in, so installing one
 # platform no longer drops all three Cores/ folders on the SD card. The
 # pkg/ tree itself is untouched (all three packages still share one
-# bitstream/chip32); this only subsets the tree at packaging time.
+# bitstream/loader); this only subsets the tree at packaging time.
 #
 # Usage: package_release.sh <version> [infix]
 #   infix (optional) is inserted before the version, e.g. a branch name for

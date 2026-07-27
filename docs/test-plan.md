@@ -173,7 +173,7 @@ toggle on NTSC (the power-up value), then PAL separately:
 ## 10. Release-flow dry run
 
 44. Run the Release action with **patch** first on a throwaway tag to
-    validate the CI path end-to-end (chip32 verify step, package
+    validate the CI path end-to-end (loader build step, package
     consistency check, zip layout) before the real **major** run.
 45. Unzip the produced release onto a clean SD card and spot-check §1
     again from that artifact — the zip root layout (Assets/Cores/
