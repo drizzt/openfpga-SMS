@@ -35,6 +35,9 @@ awk '
   function corner(raw,    c) {
     c = raw
     sub(/^Type *: */, "", c)
+    # Without multicorner analysis the Type line carries no corner: it reads
+    # "Setup <clock>" rather than "Slow 1100mV 85C Model Setup <clock>".
+    if (c !~ / Model /) return "single corner"
     sub(/ Model .*/, "", c)
     return c
   }
@@ -46,7 +49,7 @@ awk '
     slack = $0 + 0
     clk = short_clock(type_line)
 
-    if (type_line ~ /Model Setup/) {
+    if (type_line ~ /Setup/) {
       # Track per-clock worst setup
       if (!(clk in ws) || slack < ws[clk]) {
         ws[clk] = slack
@@ -66,7 +69,7 @@ awk '
       }
     }
 
-    if (type_line ~ /Model Hold/) {
+    if (type_line ~ /Hold/) {
       if (global_wh == "" || slack < global_wh) {
         global_wh = slack
         global_wh_clk = clk
