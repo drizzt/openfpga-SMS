@@ -512,8 +512,8 @@ wire    [31:0]  rtc_date_bcd;
 wire    [31:0]  rtc_time_bcd;
 wire            rtc_valid;
 
-// Save states (used by the OS for sleep/wake): one 64 KB slot served
-// over the bridge at 0x4xxxxxxx by save_state_controller.
+// Savestates (used by the OS for sleep/wake): one 64 KB slot served
+// over the bridge at 0x4xxxxxxx by savestate_controller.
 wire            savestate_supported = 1;
 wire    [31:0]  savestate_addr = 32'h40000000;
 wire    [31:0]  savestate_size = 32'h00010000;
@@ -888,9 +888,9 @@ data_loader #(
 // while the last words are still draining through the data_loader FIFO, so
 // the load path is only cleared at the START of a download and keeps
 // draining after the flag falls.
-reg  old_downloading = 0;
-always @(posedge clk_sys) old_downloading <= downloading_s;
-wire rom_dl_start = downloading_s & ~old_downloading;
+reg  prev_downloading = 0;
+always @(posedge clk_sys) prev_downloading <= downloading_s;
+wire rom_dl_start = downloading_s & ~prev_downloading;
 
 // Small skid FIFO (4 deep) between the paced loader and the byte FSM
 reg [40:0] rom_fifo [3:0];          // {addr[24:0], data[15:0]}
@@ -1045,7 +1045,7 @@ sdram ram (
 
 
 // ============================================================
-// Section 6b: Save-State Wires (engine lives in Section 10b; the
+// Section 6b: Savestate Wires (engine lives in Section 10b; the
 // WRAM/NVRAM port muxes are in Sections 7 and 8)
 // ============================================================
 
@@ -1411,7 +1411,7 @@ video video (
 
 
 // ============================================================
-// Section 10b: Save States (sleep/wake)
+// Section 10b: Savestates (sleep/wake)
 //   MiSTer savestates.sv engine + APF bridge controller. The engine's
 //   DDRAM-style bus is served by a 64 KB BRAM inside the controller
 //   instead of MiSTer's DDR3. One slot (slot 0), cart mode only.
@@ -1484,7 +1484,7 @@ savestates savestates_inst (
     .DDRAM_BUSY      ( ss_ddram_busy )
 );
 
-save_state_controller save_state_controller (
+savestate_controller savestate_controller (
     .clk_74a    ( clk_74a ),
     .clk_sys    ( clk_sys ),
 

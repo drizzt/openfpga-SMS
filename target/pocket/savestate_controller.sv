@@ -1,7 +1,7 @@
 //
-// save_state_controller.sv — APF save-state bridge for the SMS core
+// savestate_controller.sv: APF savestate bridge for the SMS core
 //
-// Glues the Pocket OS save-state protocol (host commands 0x00A0/0x00A4,
+// Glues the Pocket OS savestate protocol (host commands 0x00A0/0x00A4,
 // blob exchanged over the bridge at 0x4xxxxxxx) to MiSTer's pure-hardware
 // savestates.sv engine, which expects a MiSTer DDRAM-style 64-bit bus.
 //
@@ -17,7 +17,7 @@
 // core_top.sv), so DDRAM_ADDR[28:13] never varies.
 //
 
-module save_state_controller (
+module savestate_controller (
     input  wire        clk_74a,
     input  wire        clk_sys,
 
@@ -27,7 +27,7 @@ module save_state_controller (
     input  wire [31:0] bridge_wr_data,
     output reg  [31:0] ss_bridge_rd_data,
 
-    // APF save-state handshake (core_bridge_cmd, clk_74a domain)
+    // APF savestate handshake (core_bridge_cmd, clk_74a domain)
     input  wire        savestate_start,
     output wire        savestate_start_ack_s,
     output wire        savestate_start_busy_s,

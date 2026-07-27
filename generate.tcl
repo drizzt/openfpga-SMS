@@ -3,10 +3,9 @@ package require ::quartus::flow
 
 set base_dir [pwd]
 
-# Project files Quartus stamps with the running toolchain's version metadata
-# (QUARTUS_VERSION / LAST_QUARTUS_VERSION) on open/close. The tracked copies are
-# kept at 21.1 so both 21.1 and 25.1 build from one tree; snapshot them before the
-# flow and restore byte-for-byte after, so a 25.1 build never dirties git.
+# Quartus re-stamps QUARTUS_VERSION / LAST_QUARTUS_VERSION into these on open and
+# close. The tracked copies stay at 21.1 so 21.1 and 25.1 build from one tree, so
+# snapshot them here and restore them below.
 set guarded_files {
     projects/sms_pocket.qpf
     projects/ap_core.qpf
@@ -20,17 +19,10 @@ foreach f $guarded_files {
     }
 }
 
-# -force: when the revision database was last written by a different Quartus
-# version (e.g. switching between 21.1 and 25.1), project_open errors unless
-# allowed to overwrite that database. The db lives under gitignored build output
-# and is regenerated every compile, so overwriting it is safe and required for
-# dual-version builds.
-# Run the compile flow + STA inside a catch so the restore below ALWAYS runs,
-# even when the flow fails. project_open re-stamps the guarded files the moment
-# it opens them, so an aborted compile (the common dev case) would otherwise
-# leave them dirty — defeating the snapshot guard on exactly the failure path it
-# exists for. The status is re-raised at the end so quartus_sh -t still exits
-# non-zero on a real failure (CI must keep failing).
+# -force lets project_open overwrite a revision database written by the other
+# Quartus version; it lives under gitignored build output and is rebuilt anyway.
+# The catch is required, not cosmetic: project_open stamps the guarded files
+# immediately, so an aborted compile still needs the restore below to run.
 set build_status [catch {
     project_open -force -revision ap_core projects/sms_pocket.qpf
     set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
@@ -55,10 +47,8 @@ set build_status [catch {
 # the relative guarded/snapshot paths below resolve correctly.
 cd $base_dir
 
-# Restore the tracked project files to their pre-build state (the committed,
-# version-neutral 21.1 copies in a clean tree). Runs on success AND failure.
-# Placed after the STA report, which reopens the project (sta_custom_report.tcl)
-# and re-stamps the version metadata again — so this must run after it.
+# Restore the guarded files, on success and on failure alike. Must come after the
+# STA report, which reopens the project and re-stamps the version metadata again.
 foreach f $guarded_files {
     set snap [file join $snap_dir [file tail $f]]
     if {[file exists $snap]} {
