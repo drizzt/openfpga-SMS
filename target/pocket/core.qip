@@ -1,0 +1,21 @@
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "core_top.sv"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "video_sms.sv"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "savestate_controller.sv"]
+set_global_assignment -name VERILOG_FILE       [file join $::quartus(qip_path) "core_bridge_cmd.v"]
+set_global_assignment -name SDC_FILE           [file join $::quartus(qip_path) "core_constraints.sdc"]
+
+# Data loaders
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "data_loader.sv"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "data_unloader.sv"]
+
+# Audio
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "sound_i2s.sv"]
+set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "sync_fifo.sv"]
+set_global_assignment -name QIP_FILE           [file join $::quartus(qip_path) "audio/audio.qip"]
+set_global_assignment -name VERILOG_FILE       [file join $::quartus(qip_path) "mf_audio_pll/mf_audio_pll.v"]
+set_global_assignment -name VERILOG_FILE       [file join $::quartus(qip_path) "mf_audio_pll/mf_audio_pll_0002.v"]
+
+# Clocking
+set_global_assignment -name QIP_FILE           [file join $::quartus(qip_path) "mf_pllbase.qip"]
+set_global_assignment -name QIP_FILE           [file join $::quartus(qip_path) "pll_reconfig.qip"]
+set_global_assignment -name QIP_FILE           [file join $::quartus(qip_path) "pin_ddio_clk.qip"]

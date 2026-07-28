@@ -8,8 +8,7 @@ set base_dir [pwd]
 # snapshot them here and restore them below.
 set guarded_files {
     projects/sms_pocket.qpf
-    projects/ap_core.qpf
-    projects/ap_core.qsf
+    projects/sms_pocket.qsf
 }
 set snap_dir build_output/.proj_snapshot
 file mkdir $snap_dir
@@ -24,7 +23,7 @@ foreach f $guarded_files {
 # The catch is required, not cosmetic: project_open stamps the guarded files
 # immediately, so an aborted compile still needs the restore below to run.
 set build_status [catch {
-    project_open -force -revision ap_core projects/sms_pocket.qpf
+    project_open -force -revision sms_pocket projects/sms_pocket.qpf
     set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
     execute_flow -compile
     project_close

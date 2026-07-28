@@ -1,54 +1,59 @@
-# -------------------------------------------------------------------------- #
+# ==============================================================================
+# Analogue Pocket platform assignments
+# ==============================================================================
+# Device, pin-out and I/O settings for the Pocket's Cyclone V. These are fixed by
+# the hardware, never by the core being ported, so they live here instead of in
+# the .qsf: the .qsf then only ever shows real per-core tuning in a diff.
 #
-# Copyright (C) 2019  Intel Corporation. All rights reserved.
-# Your use of Intel Corporation's design tools, logic functions
-# and other software and tools, and any partner logic
-# functions, and any output files from any of the foregoing
-# (including device programming or simulation files), and any
-# associated documentation or information are expressly subject
-# to the terms and conditions of the Intel Program License
-# Subscription Agreement, the Intel Quartus Prime License Agreement,
-# the Intel FPGA IP License Agreement, or other applicable license
-# agreement, including, without limitation, that your use is for
-# the sole purpose of programming logic devices manufactured by
-# Intel and sold by Intel or its authorized distributors.  Please
-# refer to the applicable agreement for further details, at
-# https://fpgasoftware.intel.com/eula.
-#
-# -------------------------------------------------------------------------- #
-#
-# Quartus Prime
-# Version 18.1.1 Build 646 04/11/2019 SJ Lite Edition
-# Date created = 19:22:02  April 19, 2022
-#
-# -------------------------------------------------------------------------- #
-#
-# Notes:
-#
-# 1) The default values for assignments are stored in the file:
-#		ap_core_assignment_defaults.qdf
-#    If this file doesn't exist, see file:
-#		assignment_defaults.qdf
-#
-# 2) Altera recommends that you do not modify this file. This
-#    file is updated automatically by the Quartus Prime software
-#    and any changes you make may be lost or overwritten.
-#
-# -------------------------------------------------------------------------- #
+# Sourced from the project .qsf. Do not add core sources here, use
+# target/pocket/core.qip or rtl/core.qip.
+# ==============================================================================
 
+# ==============================================================================
+# Hardware Information
+# ==============================================================================
+set_global_assignment -name FAMILY "Cyclone V"
+set_global_assignment -name DEVICE_FILTER_PACKAGE FBGA
+set_global_assignment -name DEVICE_FILTER_PIN_COUNT 484
+set_global_assignment -name DEVICE_FILTER_SPEED_GRADE 8
+set_global_assignment -name DEVICE 5CEBA4F23C8
 
+# ==============================================================================
+# Classic Timing Assignments
+# ==============================================================================
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name TIMING_ANALYZER_MULTICORNER_ANALYSIS ON
 
-# Project-Wide Assignments
-# ========================
-set_global_assignment -name ORIGINAL_QUARTUS_VERSION 18.1.1
-set_global_assignment -name PROJECT_CREATION_TIME_DATE "21:31:36  JANUARY 22, 2020"
-set_global_assignment -name LAST_QUARTUS_VERSION "21.1.0 Standard Edition"
-set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
-set_global_assignment -name PRE_FLOW_SCRIPT_FILE "quartus_sh:../platform/pocket/build_id_gen.tcl"
-set_global_assignment -name SMART_RECOMPILE ON
+# ==============================================================================
+# Assembler Assignments
+# ==============================================================================
+set_global_assignment -name ENABLE_OCT_DONE OFF
+set_global_assignment -name USE_CONFIGURATION_DEVICE ON
+set_global_assignment -name GENERATE_RBF_FILE ON
 
+# ==============================================================================
+# Signal Tap Assignments
+# ==============================================================================
+set_global_assignment -name ENABLE_SIGNALTAP OFF
+
+# ==============================================================================
+# Power Estimation Assignments
+# ==============================================================================
+set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
+set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
+
+# ==============================================================================
+# Advanced I/O Timing Assignments
+# ==============================================================================
+set_global_assignment -name OUTPUT_IO_TIMING_NEAR_END_VMEAS "HALF VCCIO" -rise
+set_global_assignment -name OUTPUT_IO_TIMING_NEAR_END_VMEAS "HALF VCCIO" -fall
+set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -rise
+set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -fall
+
+# ==============================================================================
 # Pin & Location Assignments
-# ==========================
+# ==============================================================================
 set_location_assignment PIN_T17 -to bridge_spiclk
 set_location_assignment PIN_M21 -to bridge_spimiso
 set_location_assignment PIN_M20 -to bridge_spimosi
@@ -274,86 +279,9 @@ set_location_assignment PIN_L17 -to cart_pin30_pwroff_reset
 set_location_assignment PIN_M16 -to aux_scl
 set_location_assignment PIN_M18 -to aux_sda
 
-# Classic Timing Assignments
-# ==========================
-set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
-set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
-set_global_assignment -name TIMING_ANALYZER_MULTICORNER_ANALYSIS ON
-
-# Compiler Assignments
-# ====================
-set_global_assignment -name OPTIMIZATION_MODE "AGGRESSIVE PERFORMANCE"
-
-# Analysis & Synthesis Assignments
-# ================================
-set_global_assignment -name FAMILY "Cyclone V"
-set_global_assignment -name DEVICE_FILTER_PACKAGE FBGA
-set_global_assignment -name DEVICE_FILTER_PIN_COUNT 484
-set_global_assignment -name DEVICE_FILTER_SPEED_GRADE 8
-set_global_assignment -name TOP_LEVEL_ENTITY apf_top
-set_global_assignment -name SAFE_STATE_MACHINE OFF
-set_global_assignment -name ADV_NETLIST_OPT_SYNTH_WYSIWYG_REMAP ON
-set_global_assignment -name SYNTH_PROTECT_SDC_CONSTRAINT ON
-set_global_assignment -name PRE_MAPPING_RESYNTHESIS ON
-set_global_assignment -name OPTIMIZATION_TECHNIQUE SPEED
-set_global_assignment -name MUX_RESTRUCTURE ON
-set_global_assignment -name REMOVE_REDUNDANT_LOGIC_CELLS ON
-set_global_assignment -name AUTO_RESOURCE_SHARING ON
-
-# Fitter Assignments
-# ==================
-set_global_assignment -name DEVICE 5CEBA4F23C8
-set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256
-set_global_assignment -name STRATIXV_CONFIGURATION_SCHEME "PASSIVE SERIAL"
-set_global_assignment -name CRC_ERROR_OPEN_DRAIN ON
-set_global_assignment -name ACTIVE_SERIAL_CLOCK FREQ_100MHZ
-set_global_assignment -name ROUTER_CLOCKING_TOPOLOGY_ANALYSIS ON
-set_global_assignment -name ECO_OPTIMIZE_TIMING ON
-set_global_assignment -name PERIPHERY_TO_CORE_PLACEMENT_AND_ROUTING_OPTIMIZATION ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_COMBO_LOGIC_FOR_AREA OFF
-set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_DUPLICATION ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_ASYNCHRONOUS_SIGNAL_PIPELINING ON
-set_global_assignment -name PHYSICAL_SYNTHESIS_EFFORT EXTRA
-set_global_assignment -name FITTER_EFFORT "AUTO FIT"
-set_global_assignment -name ROUTER_LCELL_INSERTION_AND_LOGIC_DUPLICATION ON
-set_global_assignment -name FINAL_PLACEMENT_OPTIMIZATION ALWAYS
-set_global_assignment -name ALM_REGISTER_PACKING_EFFORT LOW
-set_global_assignment -name AUTO_DELAY_CHAINS_FOR_HIGH_FANOUT_INPUT_PINS ON
-set_global_assignment -name PLACEMENT_EFFORT_MULTIPLIER 4.0
-set_global_assignment -name ROUTER_TIMING_OPTIMIZATION_LEVEL MAXIMUM
-
-# Timing Closure: scoped optimizations for DMA-to-memorymux critical path
-set_instance_assignment -name AUTO_RESOURCE_SHARING OFF -to "ic|igba|igba_memorymux|*"
-
-# Assembler Assignments
-# =====================
-set_global_assignment -name ENABLE_OCT_DONE OFF
-set_global_assignment -name USE_CONFIGURATION_DEVICE ON
-set_global_assignment -name GENERATE_RBF_FILE ON
-
-# Signal Tap Assignments
-# ======================
-set_global_assignment -name ENABLE_SIGNALTAP OFF
-
-# Power Estimation Assignments
-# ============================
-set_global_assignment -name POWER_PRESET_COOLING_SOLUTION "23 MM HEAT SINK WITH 200 LFPM AIRFLOW"
-set_global_assignment -name POWER_BOARD_THERMAL_MODEL "NONE (CONSERVATIVE)"
-
-# Advanced I/O Timing Assignments
-# ===============================
-set_global_assignment -name OUTPUT_IO_TIMING_NEAR_END_VMEAS "HALF VCCIO" -rise
-set_global_assignment -name OUTPUT_IO_TIMING_NEAR_END_VMEAS "HALF VCCIO" -fall
-set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -rise
-set_global_assignment -name OUTPUT_IO_TIMING_FAR_END_VMEAS "HALF SIGNAL SWING" -fall
-
-# ---------------------
-# start ENTITY(apf_top)
-
-	# Fitter Assignments
-	# ==================
+# ==============================================================================
+# I/O Standard, Drive Strength and IOE Register Assignments
+# ==============================================================================
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to cart_tran_bank0[7]
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to sram_we_n
 set_instance_assignment -name IO_STANDARD "3.3-V LVCMOS" -to sram_lb_n
@@ -789,71 +717,6 @@ set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to port_tran_so
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to port_ir_tx
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to port_ir_rx_disable
 set_instance_assignment -name CURRENT_STRENGTH_NEW 4MA -to port_ir_rx
-
-	# start DESIGN_PARTITION(Top)
-	# ---------------------------
-
-		# Incremental Compilation Assignments
-		# ===================================
-set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
-set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
-set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
-
-	# end DESIGN_PARTITION(Top)
-	# -------------------------
-
-# end ENTITY(apf_top)
-# -------------------
-
-# ------------------------
-# start ENTITY(mf_pllbase)
-
-	# Project-Wide Assignments
-	# ========================
-
-# end ENTITY(mf_pllbase)
-# ----------------------
-
-# -----------------------------
-# start ENTITY(mf_pllbase_0002)
-
-	# Project-Wide Assignments
-	# ========================
-
-# end ENTITY(mf_pllbase_0002)
-# ---------------------------
-# APF framework (via QIP)
-set_global_assignment -name QIP_FILE ../platform/pocket/apf.qip
-
-# Core integration
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/core_top.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/video_sms.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/savestate_controller.sv
-set_global_assignment -name VERILOG_FILE ../target/pocket/core_bridge_cmd.v
-set_global_assignment -name SDC_FILE ../target/pocket/core_constraints.sdc
-set_global_assignment -name QIP_FILE ../target/pocket/mf_pllbase.qip
-set_global_assignment -name QIP_FILE ../target/pocket/pll_reconfig.qip
-set_global_assignment -name QIP_FILE ../target/pocket/pin_ddio_clk.qip
-
-# Data loaders
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/data_loader.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/data_unloader.sv
-
-# Audio
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/audio_mixer.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/sound_i2s.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/sync_fifo.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/filters/audio_filters.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/filters/dc_blocker.sv
-set_global_assignment -name SYSTEMVERILOG_FILE ../target/pocket/filters/audio_mix.sv
-set_global_assignment -name VERILOG_FILE ../target/pocket/mf_audio_pll/mf_audio_pll.v
-set_global_assignment -name VERILOG_FILE ../target/pocket/mf_audio_pll/mf_audio_pll_0002.v
-
-# SMS core RTL (vendored MiSTer upstream subset, via QIP). The core's BIOS ROM
-# init file (mboot.mif) is located via the system.vhd BASE_DIR generic, which
-# core_top sets to ../rtl/upstream/ (relative to this project directory).
-set_global_assignment -name QIP_FILE ../rtl/sms.qip
-
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_1wire
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_spiclk
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_spimiso
@@ -861,6 +724,14 @@ set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to bridge_spimosi
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to port_tran_si
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to port_tran_sck
 set_instance_assignment -name WEAK_PULL_UP_RESISTOR ON -to port_tran_sd
-set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
-set_global_assignment -name NUM_PARALLEL_PROCESSORS ALL
-set_global_assignment -name SEED 1
+
+# ==============================================================================
+# Scripts
+# ==============================================================================
+set_global_assignment -name PRE_FLOW_SCRIPT_FILE "quartus_sh:../platform/pocket/build_id_gen.tcl"
+
+# ==============================================================================
+# Framework Files
+# ==============================================================================
+set_global_assignment -name QIP_FILE ../platform/pocket/apf.qip
+set_global_assignment -name QIP_FILE ../target/pocket/core.qip

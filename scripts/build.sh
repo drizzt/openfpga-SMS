@@ -4,10 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Default to Quartus 21.1 to match the CI/release toolchain (raetro/quartus:21.1).
-# 25.1 also builds this tree (project files are kept version-neutral, see
-# generate.tcl): opt in with e.g. QUARTUS_DIR=/opt/intelFPGA_lite/25.1/quartus.
+# Default to Quartus 21.1. 25.1 also builds this tree (project files are kept
+# version-neutral, see generate.tcl): opt in with e.g.
+# QUARTUS_DIR=/opt/intelFPGA_lite/25.1/quartus.
 LOCAL_QUARTUS="${QUARTUS_DIR:-/opt/intelFPGA_lite/21.1/quartus}"
+
+# The toolchain pin, used here and by CI, so there is one image to bump.
+QUARTUS_IMAGE="${QUARTUS_IMAGE:-docker.io/raetro/quartus:21.1}"
 
 # The reconfig FSM's NTSC K word (core_top.sv) must equal the PLL's power-up
 # fractional division (mf_pllbase_0002.v). Drift is a silent hardware-only
@@ -27,11 +30,10 @@ if [ -x "$LOCAL_QUARTUS/bin/quartus_sh" ]; then
   PATH="$LOCAL_QUARTUS/bin:$PATH" quartus_sh -t generate.tcl
 else
   echo "=== Starting Quartus build via container ==="
-  # same image/invocation as CI (.github/workflows); podman works too
   "${CONTAINER_RUNTIME:-docker}" run --rm \
     -v "$PROJECT_DIR":/build:Z \
     -w /build \
-    docker.io/raetro/quartus:21.1 \
+    "$QUARTUS_IMAGE" \
     quartus_sh -t generate.tcl
 fi
 
@@ -41,8 +43,8 @@ echo "=== Build complete, reversing bitstream ==="
 
 echo ""
 "$SCRIPT_DIR/print_timing.sh" \
-  "$PROJECT_DIR/projects/output_files/ap_core.sta.summary" \
-  "$PROJECT_DIR/build_output/reports/ap_core.sta.clock_summary.rpt"
+  "$PROJECT_DIR/projects/output_files/sms_pocket.sta.summary" \
+  "$PROJECT_DIR/build_output/reports/sms_pocket.sta.clock_summary.rpt"
 
 echo "=== Done! ==="
 echo "Bitstream copied to: pkg/Cores/*/bitstream.rbf_r"

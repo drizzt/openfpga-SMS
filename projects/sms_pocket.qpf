@@ -2,4 +2,4 @@ QUARTUS_VERSION = "21.1"
 
 # Revisions
 
-PROJECT_REVISION = "ap_core"
+PROJECT_REVISION = "sms_pocket"
