@@ -21,7 +21,6 @@ set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
 # Compiler Assignments
 # ==============================================================================
 set_global_assignment -name OPTIMIZATION_MODE "AGGRESSIVE PERFORMANCE"
-set_global_assignment -name SMART_RECOMPILE ON
 
 # ==============================================================================
 # Analysis & Synthesis Assignments
