@@ -76,29 +76,61 @@ module audio_mixer #(
   end
 
   //! ------------------------------------------------------------------------
+  //! Synchronization
+  //! clk_audio -> audio_mclk. Both channels cross as one 32-bit entry so the
+  //! two can never come from different samples, pushed only when the core
+  //! output changed. audio_filters' own 2-cycle stability compare is left in
+  //! place but no longer carries the crossing on its own.
+  //! ------------------------------------------------------------------------
+  logic [15:0] core_al_s, core_ar_s;
+
+  reg write_en = 0;
+  reg [15:0] prev_left;
+  reg [15:0] prev_right;
+
+  sync_fifo #(
+      .WIDTH(32)
+  ) sync_fifo (
+      .clk_write(clk_audio),
+      .clk_read (audio_mclk),
+
+      .write_en(write_en),
+      .data    ({core_al, core_ar}),
+      .data_s  ({core_al_s, core_ar_s})
+  );
+
+  always @(posedge clk_audio) begin
+    prev_left  <= core_al;
+    prev_right <= core_ar;
+
+    write_en   <= 0;
+
+    if (core_al != prev_left || core_ar != prev_right) begin
+      write_en <= 1;
+    end
+  end
+
+  //! ------------------------------------------------------------------------
   //! Audio Output
-  //! CDC is handled by audio_filters' 2-cycle stability check,
-  //! matching MiSTer's audio_out.v approach: core_l/core_r from clk_sys are
-  //! registered twice at audio_mclk and only accepted when stable.
   //! IIR low-pass filter removed to conserve ALMs: the Pocket's DAC has
   //! built-in oversampling/interpolation. DC blocker and mix retained.
   //! ------------------------------------------------------------------------
   wire [15:0] audio_l, audio_r;
 
   audio_filters audio_filters (
-      .clk      (audio_mclk),
-      .reset    (reset),
+      .clk  (audio_mclk),
+      .reset(reset),
 
-      .att      ({1'b0, vol_att}),
+      .att({1'b0, vol_att}),
 
       .is_signed(is_signed),
       .mix      (mix),
 
-      .core_l   (core_al),
-      .core_r   (core_ar),
+      .core_l(core_al_s),
+      .core_r(core_ar_s),
 
-      .audio_l  (audio_l),
-      .audio_r  (audio_r)
+      .audio_l(audio_l),
+      .audio_r(audio_r)
   );
 
   //! ------------------------------------------------------------------------
