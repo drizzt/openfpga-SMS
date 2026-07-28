@@ -1,73 +1,62 @@
-# ==============================================================================
-# Copybara: vendor the MiSTer SMS_MiSTer core into rtl/upstream/
-# ==============================================================================
-# Mirrors the agg23/openfpga-NES approach. Upstream rtl/ is copied verbatim into
-# rtl/upstream/; the port's local modifications live as patches under
-# upstream_patches/ and are re-applied on every sync, so rtl/upstream/ stays a
-# faithful mirror and the delta is always explicit.
-#
-# Like agg23/openfpga-NES, this opens a pull request (branch vendor/upstream-sync)
-# rather than pushing to master. The PR runs a native build + timing check
-# (upstream-pr.yml); approving it auto-merges and cuts a release
-# (release-on-approval.yml). The PR branch is pushed with a PAT (CUSTOM_GH_TOKEN)
-# so those downstream workflows fire (a GITHUB_TOKEN push would not trigger them).
-#
-# Sync is RELEASE-GATED, not commit-driven: upstream.yml passes the newest upstream
-# commit that touches releases/ (MiSTer's committed .rbf) as the migration target,
-# so unreleased WIP that only touches rtl/ is never pulled in. The origin ref below
-# ("master") is only a fallback; the workflow always overrides it with that target.
-# ==============================================================================
+# Copybara: mirror the upstream MiSTer rtl/ tree onto the vendor/upstream branch,
+# as rtl/upstream/ and with no local edits applied. upstream.yml opens a pull
+# request merging that branch into the default branch, where git's three-way
+# merge re-applies the port's own changes to vendored files.
 
 upstream_url = "https://github.com/MiSTer-devel/SMS_MiSTer.git"
 downstream_url = "https://github.com/drizzt/openfpga-SMS.git"
 
+# Must match gateware.json .upstream.vendored.
+vendor_dir = "rtl/upstream"
+
 core.workflow(
     name = "default",
 
-    # ORIGIN: upstream MiSTer SMS core
     origin = git.origin(
         url = upstream_url,
+        # Fallback only: upstream.yml always passes the release commit to sync
+        # to. Still set it to the upstream's real default branch, which is
+        # "main" on plenty of MiSTer cores; a wrong ref here fails the config
+        # with "Cannot find reference(s)".
         ref = "master",
     ),
 
-    # DESTINATION: open/update a PR against this repo's master
-    destination = git.github_pr_destination(
+    # Pushed straight to the vendor branch, never to the default branch. The
+    # branch holds untouched upstream and must outlive every merge: it is the
+    # merge base that lets git carry the port's edits across syncs, and Copybara
+    # reads its own baseline from the GitOrigin-RevId trailer there. release.yml
+    # keys the merge-triggered release off the same branch name.
+    destination = git.destination(
         url = downstream_url,
-        destination_ref = "master",
-        pr_branch = "vendor/upstream-sync",
-        title = "Sync upstream SMS_MiSTer",
-        body = "Automated Copybara sync of MiSTer-devel/SMS_MiSTer rtl/ into rtl/upstream/.\n\n" +
-               "The port's local edits are re-applied from .github/upstream_patches/. " +
-               "Merge to cut a release (patch by default; add a release:minor / " +
-               "release:major label before merging to override).",
-        integrates = [],
+        fetch = "vendor/upstream",
+        push = "vendor/upstream",
     ),
 
     # 1:1 commit per upstream commit, preserving upstream history/granularity
     mode = "ITERATIVE",
 
-    # Preserve upstream authorship
     authoring = authoring.pass_thru("Copybara <copybara@example.com>"),
 
-    # Only the upstream rtl/ tree is vendored
     origin_files = glob(["rtl/**"]),
 
-    # The destination footprint Copybara owns. Files under rtl/upstream/ that are
-    # absent from upstream get deleted here (keeps the mirror exact); everything
-    # outside this glob (rtl/sms.qip, platform/, target/, projects/, ...) is never
-    # touched.
-    destination_files = glob(["rtl/upstream/**"]),
+    # The footprint Copybara owns on the vendor branch. Files under the vendor
+    # dir that are absent from upstream get deleted there, keeping the mirror
+    # exact.
+    destination_files = glob([vendor_dir + "/**"]),
 
     transformations = [
-        # upstream rtl/foo -> rtl/upstream/foo
-        core.move("rtl", "rtl/upstream"),
-        # Re-apply the port's local edits. Copybara keeps a single source of
-        # truth, so downstream changes to upstream files must be expressed as
-        # patches here (it also won't traverse "../", hence the flat path).
-        patch.apply(patches = [
-            "upstream_patches/system.patch",
-            "upstream_patches/savestates.patch",
-        ]),
+        core.move("rtl", vendor_dir),
+
+        # Normalize CRLF -> LF before merging (upstream stores mixed/CRLF endings)
+        core.transform(transformations = [
+            core.replace(
+                before = "\r\n",
+                after = "\n",
+                paths = glob([vendor_dir + "/**"]),
+                multiline = True,
+            ),
+        ], noop_behavior = "IGNORE_NOOP"),
+
         metadata.add_header("[UPSTREAM] ", ignore_label_not_found = True, new_line = False),
     ],
 )

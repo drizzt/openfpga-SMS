@@ -31,7 +31,7 @@
   "upstream": {
     "repository": "https://github.com/MiSTer-devel/SMS_MiSTer",
     "vendored": "rtl/upstream",
-    "sync": ".github/copy.bara.sky"
+    "release_path": "releases/"
   },
   "modules": {}
 }
