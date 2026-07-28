@@ -1062,10 +1062,6 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
-                // Old (pre-96KB) cores wrote size_in_32b_words = (64KB-8)/4 =
-                // 16382, not 0x4000; new cores write (96KB-8)/4 = 24574. Flag
-                // the old size as legacy so 64KB states restore with the legacy
-                // layout instead of being parsed as the new format.
                 is_old_format <= (dout_latch[63:32] == OLD_SS_WORDS);
                 ddram_read(base_addr + 29'd1);
                 state <= ST_LOAD_HDR_WT2;
@@ -1077,12 +1073,9 @@ always @(posedge clk or negedge reset_n) begin
                 dout_expected <= 0;
                 dout_latch    <= DDRAM_DOUT;
             end else if (!dout_expected && !DDRAM_BUSY) begin
-                // Old saves predate the game-signature field: word 1 was
-                // magic-only (BE 0x0F), so its upper 32 bits are stale/undefined,
-                // never the ROM signature. Validate legacy states on magic alone;
-                // only enforce the signature on the new format.
                 if (dout_latch[31:0] == cur_magic &&
                     (is_old_format || dout_latch[63:32] == cur_game_id)) begin
+                    // Old format stored no game_id in word 1, so skip that check.
                     // Read Z80 words
                     ddram_read(base_addr + 29'd2);
                     cpu_idx <= 0;
