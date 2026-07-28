@@ -100,8 +100,8 @@ images for these platforms, grab them from
 ### Build
 
 ```bash
-./scripts/build.sh          # bitstream → pkg/Cores/*/bitstream.rbf_r
-./scripts/build_loader.sh   # loader.bin → pkg/Cores/*/loader.bin
+./scripts/build.sh          # bitstream → pkg/pocket/Cores/*/bitstream.rbf_r
+./scripts/build_loader.sh   # loader.bin → pkg/pocket/Cores/*/loader.bin
 ```
 
 `build.sh` defaults to Quartus 21.1 (matching the CI/release toolchain). To
@@ -117,57 +117,113 @@ QUARTUS_DIR=/opt/intelFPGA_lite/25.1/quartus ./scripts/build.sh  # 25.1
 The tree follows the OpenGateware "gateman" layout used by other MiSTer ports
 (for example [agg23/openfpga-NES](https://github.com/agg23/openfpga-NES)):
 
-- `rtl/upstream/` : the MiSTer `SMS_MiSTer` core, kept a faithful mirror of
-  upstream. Do not edit these files directly (see Upstream Sync below).
+- `rtl/upstream/` : the MiSTer `SMS_MiSTer` core, vendored through the
+  `vendor/upstream` branch (see Upstream Sync below).
 - `rtl/sms.qip` : selects the subset of `rtl/upstream/` that is compiled.
-- `platform/pocket/` : Analogue Pocket APF framework.
+- `platform/pocket/` : Analogue Pocket APF framework. `pocket.tcl` carries the
+  device, pin-out and I/O assignments, which are fixed by the hardware.
 - `target/pocket/` : the Pocket integration (top level, clocking, video, audio,
-  data loaders).
+  data loaders), listed in `target/pocket/core.qip`.
 - `support/` : `loader.asm`, the Chip32 loader run by the Pocket OS.
-- `projects/` : the Quartus project (`sms_pocket.qpf`, revision `ap_core`).
-- `pkg/` : the packaged openFPGA cores/assets/platforms.
+- `projects/` : the Quartus project, `sms_pocket.qpf` + `sms_pocket.qsf`. The
+  `.qsf` holds only per-core tuning; it sources `pocket.tcl` for the platform and
+  pulls sources in through the `.qip` files. Adding a file to the project means
+  editing a `.qip`, never the Quartus IDE, which rewrites the `.qsf` and drops
+  the `source` line.
+- `pkg/pocket/` : the packaged openFPGA cores/assets/platforms.
 
 ## Upstream Sync
 
-New MiSTer `SMS_MiSTer` **releases** are pulled in automatically as a reviewed
-pull request. A daily [Copybara](https://github.com/google/copybara) job
-(`.github/workflows/upstream.yml`, config `.github/copy.bara.sky`) copies the
-upstream `rtl/` into `rtl/upstream/`, re-applies the port's local edits from
-`.github/upstream_patches/`, and opens (or updates) the `vendor/upstream-sync`
-PR.
+`.github/copy.bara.sky` mirrors the upstream MiSTer `rtl/` tree onto the
+`vendor/upstream` branch, as `rtl/upstream/` and with nothing of this port's
+applied. `.github/workflows/upstream.yml` runs it daily, opens one pull request
+merging that branch into `master`, and arms auto-merge on it; merging cuts a
+release. The cycle is unattended end to end, and stops for a human on a merge
+conflict or a red timing gate, on nothing else.
+
+Local changes to vendored files are just commits on `master`. The sync merge
+carries them: git's three-way merge sees pristine upstream on both the merge base
+and the vendor branch, this port's edits on its side, and reapplies them. There is
+no patch set to keep in step with the tree, and a conflict is resolved once, in
+the PR, after which the recorded merge keeps it resolved.
+
+To see everything this port changed on top of upstream:
+
+```sh
+git diff origin/vendor/upstream master -- rtl/upstream
+```
 
 The sync is release-gated: MiSTer commits a compiled `.rbf` under `releases/`
 when it cuts a release, so the workflow targets the newest upstream commit that
 touches `releases/` and syncs `rtl/` up to that point. Unreleased work-in-progress
 commits that only touch `rtl/` are left alone until they are part of a release.
+The path comes from `.upstream.release_path` in `gateware.json`.
 
-That PR is built and timing-gated by `.github/workflows/upstream-pr.yml`: it
-compiles the bitstream and runs static timing analysis. If **any** path has
-negative slack, the timing report is posted as a PR comment and the check fails
-(red). Make that gate a required status check on `master` so a timing-broken
-sync cannot be merged.
-
-Merging the PR triggers `.github/workflows/release-on-merge.yml`, which cuts a
-release automatically: version bump, compile, tag, GitHub release and the three
-per-platform zips, then deletes the merged branch. It fires however the PR is
-merged (the Merge button or auto-merge). The bump is a **patch** by default; add
-a `release:minor` or `release:major` label to the PR **before merging** to
-override.
-
-Because upstream is re-mirrored on every sync, any local change to a
-`rtl/upstream/` file must be expressed as a patch under
-`.github/upstream_patches/` (currently only `system.patch`, the OSD legacy
-palette override) rather than edited in place. If upstream ever changes the same
-lines a patch touches, the sync fails and the patch must be refreshed.
+The PR is built and timing-gated by `.github/workflows/pr.yml`, and merging it
+triggers `.github/workflows/release.yml`: version bump, compile, tag, GitHub
+release and the three per-platform zips. The bump is a **patch** by default; add
+a `release:minor` or `release:major` label to the PR **before** the gate finishes
+to override.
 
 The sync needs one repository secret, `CUSTOM_GH_TOKEN`: a fine-grained Personal
 Access Token scoped to this repo with **Contents: Read and write** and **Pull
-requests: Read and write**. Copybara pushes the PR branch with it so the
-`pull_request` build and `pull_request_review` release workflows fire (a branch
-pushed with the default `GITHUB_TOKEN` would not trigger them).
+requests: Read and write**. Copybara pushes the vendor branch with it so the
+`pull_request` build and the merge-triggered release fire (a branch pushed with
+the default `GITHUB_TOKEN` would not trigger them).
 
-The first run must be triggered manually with the `last_rev` input set to the
-upstream commit this port forked from, to seed Copybara's baseline.
+### Repository settings the sync depends on
+
+Set these once, or the sync cannot run unattended. `upstream.yml` arms auto-merge
+with `--merge`, so the repo has to allow it and has to have something to wait on:
+
+```sh
+gh api -X PATCH repos/drizzt/openfpga-SMS \
+  -F allow_auto_merge=true -F allow_merge_commit=true \
+  -F allow_squash_merge=false -F allow_rebase_merge=false \
+  -F delete_branch_on_merge=false
+
+gh api -X PUT repos/drizzt/openfpga-SMS/branches/master/protection \
+  -F required_status_checks[strict]=false \
+  -f 'required_status_checks[contexts][]=gate' \
+  -F enforce_admins=false -F required_pull_request_reviews=null \
+  -F restrictions=null
+```
+
+Squash or rebase drops the merge parent, so the next sync finds only the seed as
+a merge base and replays the whole upstream history against a tree that already
+has it. Deleting `vendor/upstream` after merging does the same damage, since
+Copybara then has no baseline to fetch, and with nobody watching both fail
+silently. Without a required check, auto-merge has nothing to wait for and lands
+the PR before the build has said anything.
+
+### Seeding the vendor branch
+
+`rtl/upstream/` was vendored by hand before this model existed, so the branch is
+seeded from pristine upstream and joined with `-s ours`, which records the
+ancestry without touching the tree. The `GitOrigin-RevId` trailer is Copybara's
+baseline, so writing it into the seed commit means no run ever needs the
+`last_rev` input.
+
+```sh
+git clone https://github.com/MiSTer-devel/SMS_MiSTer.git /tmp/upstream
+git -C /tmp/upstream rev-parse HEAD          # the sha for the trailer below
+
+git switch --orphan vendor/upstream
+mkdir -p rtl/upstream && cp -r /tmp/upstream/rtl/. rtl/upstream/
+git add rtl/upstream
+git commit -m "seed vendor branch
+
+GitOrigin-RevId: <upstream sha>"
+
+git switch master
+git merge -s ours --allow-unrelated-histories vendor/upstream \
+  -m "record vendor/upstream as the merge base for rtl/upstream"
+git push origin vendor/upstream master
+```
+
+Check it with the `git diff` above before pushing: it must show exactly this
+port's intended local changes and nothing else, because that diff is what every
+future sync will preserve.
 
 ## Credits
 
