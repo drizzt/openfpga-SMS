@@ -91,7 +91,6 @@ entity system is
 		y:				in	 STD_LOGIC_VECTOR(8 downto 0);
 		color:		out STD_LOGIC_VECTOR(11 downto 0);
 		palettemode:	in	STD_LOGIC;
-		tms_palette:	in	STD_LOGIC := '0';  -- OSD: force TMS9918 legacy colors (SMS)
 		mask_column:out STD_LOGIC;
 		black_column:		in STD_LOGIC;
 		smode_M1:		out STD_LOGIC;
@@ -215,11 +214,6 @@ architecture Behavioral of system is
 	signal vdp_WR_n:			std_logic;
 	signal vdp_D_out:			std_logic_vector(7 downto 0);
 	signal vdp_IRQ_n:			std_logic;
-	-- Legacy TMS9918 color-table select for the VDPs only. SG-1000 always uses
-	-- the authentic table; the OSD tms_palette toggle lets SMS opt in too. Kept
-	-- separate from palettemode so it never affects SG-1000 I/O gating (sg_mode,
-	-- port $DE/$DF), which stays tied to the true console mode.
-	signal vdp_legacy_pal:	std_logic;
 	signal vdp_color:			std_logic_vector(11 downto 0);
 --	signal vdp_y1:				std_logic;
 	signal vdp2_RD_n:			std_logic;
@@ -456,8 +450,6 @@ architecture Behavioral of system is
 
 begin
 
-	vdp_legacy_pal <= palettemode or tms_palette;
-
 	-- Game Genie
 	GAMEGENIE : component CODES
 	generic map(
@@ -530,7 +522,7 @@ begin
 		x			=> x,
 		y			=> y,
 		color		=> vdp_color,
-		palettemode	=> vdp_legacy_pal,
+		palettemode	=> palettemode,
 --		y1       => vdp_y1,
 		smode_M1  => smode_M1,
 		smode_M2  => smode_M2,
@@ -581,7 +573,7 @@ begin
 		x			=> x,
 		y			=> y,
 		color		=> vdp2_color,
-		palettemode	=> vdp_legacy_pal,
+		palettemode	=> palettemode,
 		y1       => vdp2_y1,
 --		smode_M1  => smode2_M1,
 --		smode_M2  => smode2_M2,

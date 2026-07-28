@@ -1243,12 +1243,8 @@ wire        smode_M1, smode_M2, smode_M3;
 wire        HS, VS, HBlank, VBlank;
 wire [15:0] audio_l, audio_r;
 
-// ss_freeze and the gated ce inputs exactly as MiSTer SMS.sv does: pauses the
-// emulated machine during a state save/load. The ce gating alone is not enough,
-// system.vhd holds ~18 ss_freeze guards on paths that are not ce-qualified
-// (concurrent write enables, mapper bank registers, the mapper detect counter).
-// The video instance below and the sdram clkref keep their ungated ce's so
-// timing keeps running.
+// ss_freeze plus gated ce's, as MiSTer SMS.sv. ce gating alone is not enough:
+// system.vhd guards write enables and mapper registers on ss_freeze directly.
 system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .clk_sys    ( clk_sys ),
     .ss_freeze  ( ss_freeze ),
@@ -1331,8 +1327,9 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .x          ( vx ),
     .y          ( vy ),
     .color      ( color ),
-    .palettemode( palettemode ),
-    .tms_palette( tms_palette_s ),
+    // Legacy Palette OR'd in as SMS.sv does for SC-3000. Also sets sg_mode, so
+    // $DE/$DF decode as SG-1000 I/O; harmless with sk1100/sc3000 tied off.
+    .palettemode( palettemode | tms_palette_s ),
     .mask_column( mask_column ),
     .black_column( blank_border_s ),
     .smode_M1   ( smode_M1 ),
@@ -1420,7 +1417,7 @@ video video (
     .smode_M4   ( 1'b0 ),
     .video_state_out( ss_video_state_out ),
     .video_state_in ( ss_video_state_in ),
-    .video_state_set( 1'b0 ),   // MiSTer ties this off too: raster is realigned by waiting, not restored
+    .video_state_set( 1'b0 ),   // tied off in MiSTer too: raster realigns by waiting
     .x          ( vx ),
     .y          ( vy ),
     .hsync      ( HS ),
