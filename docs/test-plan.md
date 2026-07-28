@@ -1,4 +1,4 @@
-# On-device test plan — openfpga-SMS pre-1.0.0
+# On-device test plan — openfpga-SMS
 
 Tied to the port's specific risk areas: the clock change, the scaler slot
 announcement, the SDRAM download path, the three-package layout, and the
@@ -32,8 +32,8 @@ Each numbered item = pass/fail. Anything failing in §1–§6 blocks 1.0.0.
 ## 1. Packaging / browsing (three-package invariant)
 
 1. All three platforms appear in the Pocket library: Master System,
-   Game Gear, SG-1000, with correct names/years (artwork is a known gap —
-   decide if 1.0.0 ships without it).
+   Game Gear, SG-1000, with correct names/years (platform artwork is not
+   shipped, see README.md).
 2. From each platform, Run → browser opens **its own** Assets folder
    (`sms`, `gg`, `sg1000`) and lists only the matching extension.
 3. Load a game from each of the three platforms; correct system mode comes
