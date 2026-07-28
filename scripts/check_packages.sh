@@ -52,7 +52,7 @@ done
 # anything else is drift.
 # Single source for the exempt id set so the filter and the drift message
 # below cannot desync.
-intentional_ids='[25,30,35,40,45,50,55]'
+intentional_ids='[25,35,40,45,50,55]'
 interact_hash() {
   jq -S --argjson skip "$intentional_ids" \
     '[.interact.variables[] | select(.id as $i | ($skip | index($i)) == null)]' "$1" \
@@ -72,6 +72,17 @@ for d in pkg/pocket/Cores/*/; do
   name=$(jq -r '.core.metadata.author + "." + .core.metadata.shortname' "$d/core.json")
   if [ "$(basename "$d")" != "$name" ]; then
     echo "DRIFT: folder $(basename "$d") != author.shortname $name"
+    fail=1
+  fi
+done
+
+# The Chip32 VM program is optional, but a core.json naming one must have a
+# source to build it from, or the package ships a core.json pointing at a file
+# that is not in the zip.
+for f in pkg/pocket/Cores/*/core.json; do
+  vm=$(jq -r '.core.framework.chip32_vm // empty' "$f")
+  if [ -n "$vm" ] && [ ! -f support/loader.asm ]; then
+    echo "DRIFT: $f declares chip32_vm '$vm' but support/loader.asm is gone"
     fail=1
   fi
 done
