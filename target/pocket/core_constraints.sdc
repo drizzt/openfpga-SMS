@@ -4,9 +4,6 @@
 # put your clock groups in here as well as any net assignments
 #
 
-# ============================================================
-# SDRAM Timing Constraints
-# ============================================================
 # SDRAM: AS4C32M16MSA-6BIN (512 Mbit, 166 MHz max, -6 speed grade)
 # dram_clk is DDR-forwarded from PLL outclk_1 (180 deg phase, 9312 ps).
 #
@@ -44,8 +41,8 @@ set_clock_groups -asynchronous \
           sdram_clk \
           ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[2].output_counter|divclk \
           ic|mp1|mf_pllbase_inst|sys_pll_i|cyclonev_pll|counter[3].output_counter|divclk } \
- -group { ic|audio_out|audio_pll|mf_audio_pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk \
-          ic|audio_out|audio_pll|mf_audio_pll_inst|altera_pll_i|general[1].gpll~PLL_OUTPUT_COUNTER|divclk }
+ -group { ic|audio_mixer|audio_pll|mf_audio_pll_inst|altera_pll_i|general[0].gpll~PLL_OUTPUT_COUNTER|divclk \
+          ic|audio_mixer|audio_pll|mf_audio_pll_inst|altera_pll_i|general[1].gpll~PLL_OUTPUT_COUNTER|divclk }
 
 derive_clock_uncertainty
 
@@ -56,8 +53,6 @@ set_output_delay -clock sdram_clk -min -0.8 \
   [get_ports {dram_a[*] dram_ba[*] dram_dq[*] dram_dqm[*] dram_ras_n dram_cas_n dram_we_n dram_cke}]
 
 # Read path: input delay for DQ relative to sdram_clk
-# tAC = 6.0 ns max (access time from CLK, CL=2)
-# tOH = 2.5 ns min (output hold from CLK)
 set_input_delay -clock sdram_clk -max 6.0 [get_ports {dram_dq[*]}]
 set_input_delay -clock sdram_clk -min 2.5 [get_ports {dram_dq[*]}]
 
@@ -89,13 +84,10 @@ set_multicycle_path -hold -end 1 \
   -from [get_registers {*altera_pll_reconfig_core*}] \
   -to   [get_registers {*mf_pllbase_inst*}]
 
-# Non-SDRAM top-level I/O timing coverage:
-# These APF/platform interfaces are not signed off with external setup/hold
-# delays here. They are either protocol/wait-state timed, source-synchronous
-# to fixed platform wiring, or handled by the APF bridge logic. Marking them
-# false path keeps TimeQuest's "fully constrained" check focused on the paths
-# this core actually constrains instead of reporting intentionally unmanaged
-# board-level I/O.
+# These APF/platform interfaces are protocol timed, source-synchronous to fixed
+# board wiring, or handled inside the APF bridge, so they carry no external
+# delays here. False-pathing them keeps the "fully constrained" check on the
+# paths this core does constrain.
 set_false_path -from [get_ports { \
   bridge_1wire bridge_spimiso bridge_spimosi bridge_spiss \
   cram0_dq[*] \

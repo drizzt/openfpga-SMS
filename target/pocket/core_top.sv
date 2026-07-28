@@ -556,9 +556,11 @@ wire    [31:0]  target_buffer_resp_struct = 0;
 // data_slots index 1: 1*2+1 = 3). The Pocket OS reads this value on core
 // exit to determine save writeback size. Continuous (not one-shot) because
 // the OS may overwrite the entry during its own bookkeeping.
+localparam [31:0] SAVE_SIZE = 32'd32768;   // must match the Save slot size_maximum in data.json
+
 wire    [9:0]   datatable_addr = 10'd3;
 wire            datatable_wren = pll_core_locked_s;
-wire    [31:0]  datatable_data = 32'd32768;
+wire    [31:0]  datatable_data = SAVE_SIZE;
 wire    [31:0]  datatable_q;
 
 core_bridge_cmd icb (
@@ -814,7 +816,9 @@ wire core_hold = ~reset_n_s | core_reset_s | ~pll_ever_locked | downloading_s
 
 // WRAM clear on reset (MiSTer SMS.sv pattern; 8 KB: systeme/sc3000 are
 // hardwired off, so system.vhd never drives ram_a[13])
-reg [12:0] ram_clr_addr;
+localparam WRAM_AW = 13;   // 2^13 = 8 KB
+
+reg [WRAM_AW-1:0] ram_clr_addr;
 reg        ram_clr_run = 0;
 
 always @(posedge clk_sys) begin
@@ -823,7 +827,7 @@ always @(posedge clk_sys) begin
         ram_clr_run  <= 1'b1;
     end else if (ram_clr_run) begin
         ram_clr_addr <= ram_clr_addr + 1'd1;
-        if (ram_clr_addr == 13'h1FFF) begin
+        if (ram_clr_addr == {WRAM_AW{1'b1}}) begin
             ram_clr_run <= 1'b0;
         end
     end
@@ -924,7 +928,11 @@ reg         rom_byte_wr = 0;        // 1-cycle pulse → system ROMEN
 
 reg  [15:0] cur_word;
 reg  [24:0] cur_addr;
-reg  [1:0]  rom_ld_state = 0;       // 0=idle, 1=wait ack byte0, 2=wait ack byte1
+localparam ROM_IDLE = 2'd0;
+localparam ROM_WAIT_ACK_BYTE0 = 2'd1;
+localparam ROM_WAIT_ACK_BYTE1 = 2'd2;
+
+reg  [1:0]  rom_ld_state = ROM_IDLE;
 
 wire [40:0] rom_fifo_head = rom_fifo[rom_fifo_rptr[1:0]];
 
@@ -932,11 +940,11 @@ always @(posedge clk_sys) begin
     rom_byte_wr <= 0;
 
     if (rom_dl_start) begin
-        rom_ld_state <= 0;
+        rom_ld_state <= ROM_IDLE;
         rom_fifo_rptr <= 0;
     end else begin
         case (rom_ld_state)
-        2'd0: begin
+        ROM_IDLE: begin
             if (~rom_fifo_empty) begin
                 {cur_addr, cur_word} <= rom_fifo_head;
                 rom_fifo_rptr <= rom_fifo_rptr + 1'd1;
@@ -946,25 +954,25 @@ always @(posedge clk_sys) begin
                 rom_wr  <= ~rom_wr;
                 rom_byte_wr <= 1;
 
-                rom_ld_state <= 2'd1;
+                rom_ld_state <= ROM_WAIT_ACK_BYTE0;
             end
         end
-        2'd1: begin
+        ROM_WAIT_ACK_BYTE0: begin
             if (rom_wr == sd_wrack) begin
                 romwr_a <= cur_addr + 1'd1;
                 romwr_d <= cur_word[15:8];
                 rom_wr  <= ~rom_wr;
                 rom_byte_wr <= 1;
 
-                rom_ld_state <= 2'd2;
+                rom_ld_state <= ROM_WAIT_ACK_BYTE1;
             end
         end
-        2'd2: begin
+        ROM_WAIT_ACK_BYTE1: begin
             if (rom_wr == sd_wrack) begin
-                rom_ld_state <= 2'd0;
+                rom_ld_state <= ROM_IDLE;
             end
         end
-        default: rom_ld_state <= 0;
+        default: rom_ld_state <= ROM_IDLE;
         endcase
     end
 end
@@ -1161,7 +1169,9 @@ data_unloader #(
 // (Dahjee A expansion RAM snapshot, lower 8 KB only, mirrors MiSTer SMS.sv).
 // Port B: save load (boot) / unload (writeback).
 // The Pocket OS sequences load and unload, so a simple address mux suffices.
-dpram #(.widthad_a(15)) nvram_inst (
+localparam NVRAM_AW = 15;   // 2^15 = 32 KB, SAVE_SIZE
+
+dpram #(.widthad_a(NVRAM_AW)) nvram_inst (
     .clock_a    ( clk_sys ),
     .address_a  ( ss_freeze ? (ss_nvram_WE ? {2'b00, ss_nvram_WA} : {2'b00, ss_nvram_A}) : nvram_a ),
     .wren_a     ( ss_freeze ? ss_nvram_WE : nvram_we ),
@@ -1169,7 +1179,7 @@ dpram #(.widthad_a(15)) nvram_inst (
     .q_a        ( nvram_q ),
 
     .clock_b    ( clk_sys ),
-    .address_b  ( save_loader_wr ? save_loader_addr[14:0] : save_unloader_addr[14:0] ),
+    .address_b  ( save_loader_wr ? save_loader_addr[NVRAM_AW-1:0] : save_unloader_addr[NVRAM_AW-1:0] ),
     .wren_b     ( save_loader_wr ),
     .data_b     ( save_loader_data ),
     .q_b        ( save_unloader_data )
@@ -1187,10 +1197,10 @@ wire  [7:0] ram_q;
 
 // savestates takes the port over during ss_freeze (mirrors MiSTer SMS.sv);
 // its addresses are 14-bit but only ever count to 8191 here (8 KB WRAM).
-spram #(.widthad_a(13)) ram_inst (
+spram #(.widthad_a(WRAM_AW)) ram_inst (
     .clock     ( clk_sys ),
-    .address   ( ss_freeze ? (ss_wram_WE ? ss_wram_WA[12:0] : ss_wram_A[12:0])
-                           : (ram_clr_run ? ram_clr_addr : ram_a[12:0]) ),
+    .address   ( ss_freeze ? (ss_wram_WE ? ss_wram_WA[WRAM_AW-1:0] : ss_wram_A[WRAM_AW-1:0])
+                           : (ram_clr_run ? ram_clr_addr : ram_a[WRAM_AW-1:0]) ),
     .wren      ( ss_freeze ? ss_wram_WE : (ram_clr_run | ram_we) ),
     .data      ( ss_freeze ? ss_wram_WD : (ram_clr_run ? 8'h00 : ram_d) ),
     .q         ( ram_q )
@@ -1583,18 +1593,27 @@ video_sms video_out (
 // Section 12: Audio Output
 // ============================================================
 
+reg [15:0] audio_buffer_l = 0;
+reg [15:0] audio_buffer_r = 0;
+
+// Buffer audio to have better fitting on audio route
+always @(posedge clk_sys) begin
+    audio_buffer_l <= audio_l;
+    audio_buffer_r <= audio_r;
+end
+
 audio_mixer #(
     .DW     ( 16 ),
     .STEREO ( 1 )
-) audio_out (
+) audio_mixer (
     .clk_74b    ( clk_74b ),
     .clk_audio  ( clk_sys ),
     .reset      ( reset_active ),
     .vol_att    ( 4'd0 ),
     .mix        ( 2'd1 ),              // 25% L/R crossfeed (MiSTer AUDIO_MIX = 1)
     .is_signed  ( 1'b1 ),
-    .core_l     ( audio_l ),
-    .core_r     ( audio_r ),
+    .core_l     ( audio_buffer_l ),
+    .core_r     ( audio_buffer_r ),
     .audio_mclk ( audio_mclk ),
     .audio_lrck ( audio_lrck ),
     .audio_dac  ( audio_dac )

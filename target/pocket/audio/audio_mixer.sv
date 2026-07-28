@@ -85,9 +85,7 @@ module audio_mixer #(
   //! ------------------------------------------------------------------------
   wire [15:0] audio_l, audio_r;
 
-  audio_filters #(
-      .CLK_RATE(12288000)
-  ) audio_filters_inst (
+  audio_filters audio_filters (
       .clk      (audio_mclk),
       .reset    (reset),
 
@@ -107,9 +105,7 @@ module audio_mixer #(
   //! Pocket I2S Output
   //! ------------------------------------------------------------------------
 
-  sound_i2s #(
-      .SIGNED_INPUT(1)
-  ) sound_i2s (
+  sound_i2s sound_i2s (
       .audio_sclk(audio_sclk),
 
       .audio_l(audio_l),

@@ -130,7 +130,6 @@ module audio_filters
                );
 
     wire [15:0] audio_l_pre;
-    wire [15:0] audio_l_mix;
     audio_mix audmix_l
               (
                   .clk         ( clk         ),
@@ -142,11 +141,10 @@ module audio_filters
                   .pre_in      ( audio_r_pre ),
 
                   .pre_out     ( audio_l_pre ),
-                  .out         ( audio_l_mix )
+                  .out         ( audio_l     )
               );
 
     wire [15:0] audio_r_pre;
-    wire [15:0] audio_r_mix;
     audio_mix audmix_r
               (
                   .clk         ( clk         ),
@@ -158,10 +156,7 @@ module audio_filters
                   .pre_in      ( audio_l_pre ),
 
                   .pre_out     ( audio_r_pre ),
-                  .out         ( audio_r_mix )
+                  .out         ( audio_r     )
               );
-
-    assign audio_l = audio_l_mix;
-    assign audio_r = audio_r_mix;
 
 endmodule
