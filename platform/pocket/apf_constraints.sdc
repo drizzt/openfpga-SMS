@@ -13,8 +13,7 @@ derive_pll_clocks
 
 
 # io constraints go here
-# 
+#
 
-
-# load in user constraints 
-read_sdc "core/core_constraints.sdc"
+# core_constraints.sdc is loaded as an SDC_FILE by target/pocket/core.qip, so
+# the read_sdc here would only load it a second time
