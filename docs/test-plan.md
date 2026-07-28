@@ -120,6 +120,17 @@ toggle on NTSC (the power-up value), then PAL separately:
 26. Save, then load a **different** game in the same session, then the
     original again — the right save comes back (OS-sequenced load/unload,
     no stale BRAM).
+26a. **Savestate vs battery save** (Phantasy Star, Sega mapper, 16 KB
+     NVRAM): create an in-game save, quit, copy the `.sav` off the SD
+     card. Relaunch, take a savestate, load it back, quit, copy the
+     `.sav` again and `cmp` the two. They must be identical. A plain
+     save/load round trip looks fine while the cart-SRAM DMA wraps, so
+     compare the file: the failure signature is the first 8 KB repeated
+     across the rest.
+26b. Repeat on a 32 KB NVRAM title (`nvram_ex`/`nvram_p`/The Castle) and
+     on an 8 KB one (Dahjee / Codemasters CME). Only the 8 KB case
+     exercises a non-wrapping address, so it passes either way. It is the
+     control, not the test.
 
 ## 6. Inputs
 
