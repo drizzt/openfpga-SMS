@@ -4,3 +4,8 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+  # Composite actions are not covered by the "/" entry; they need their own.
+  - package-ecosystem: "github-actions"
+    directory: "/.github/actions/build-core"
+    schedule:
+      interval: "weekly"

@@ -1,101 +1,70 @@
-name: Release
+name: Build
+
+# The single build path: called by pr.yml, or run manually to build a branch
+# and get install zips without opening a PR.
+#
+# No concurrency block: as a called workflow it shares the caller's group, and
+# github.workflow resolves to the caller, so setting one here would let parent
+# and child cancel each other mid-compile.
 
 on:
+  workflow_call:
+    outputs:
+      matrix:
+        description: Platform matrix built from pkg/pocket/Cores/*/core.json.
+        value: ${{ jobs.build.outputs.matrix }}
   workflow_dispatch:
-    inputs:
-      bump:
-        description: "Version bump type"
-        required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
-
-concurrency:
-  group: ${{ github.workflow }}
-  cancel-in-progress: true
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # Admin PAT: bypasses the required "gate" check on master (gate runs
-          # only on pull_request, so the default GITHUB_TOKEN push is rejected).
-          token: ${{ secrets.CUSTOM_GH_TOKEN }}
 
-      - name: Build loader
-        run: scripts/build_loader.sh
+      - name: Build core
+        uses: ./.github/actions/build-core
 
-      - name: Check package consistency
-        run: scripts/check_packages.sh
-
-      - name: Bump version
-        id: version
+      - name: Build platform matrix
+        id: matrix
         run: |
-          NEW=$(scripts/bump_version.sh "${{ inputs.bump }}")
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
+          # Data-driven from pkg/pocket/Cores/*/core.json (no hardcoded platform list).
+          include=$(for f in pkg/pocket/Cores/*/core.json; do
+            d=$(basename "$(dirname "$f")")
+            s=$(jq -r '.core.metadata.shortname' "$f")
+            p=$(jq -r '.core.metadata.platform_ids[0]' "$f")
+            jq -nc --arg d "$d" --arg s "$s" --arg p "$p" \
+              '{pkgdir:$d, short:$s, pid:$p}'
+          done | jq -sc '{include: .}')
+          echo "matrix=$include" >> "$GITHUB_OUTPUT"
+          # Packages release in lockstep, so any core.json carries the version.
+          set -- pkg/pocket/Cores/*/core.json
+          echo "version=$(jq -r '.core.metadata.version' "$1")" >> "$GITHUB_OUTPUT"
 
-      - name: Compile
-        run: docker run --rm -v ${{ github.workspace }}:/build -w /build raetro/quartus:21.1 quartus_sh -t generate.tcl
-
-      - name: Reverse bitstream
-        run: scripts/deploy_bitstream.sh
-
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pkg/Cores/*/core.json gateware.json
-          git commit -m "release v${{ steps.version.outputs.version }}"
-          git tag "v${{ steps.version.outputs.version }}"
-          git push origin HEAD --tags
-
-      - name: Package release zips
-        run: scripts/package_release.sh "${{ steps.version.outputs.version }}"
-
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
-          files: openfpga-*_${{ steps.version.outputs.version }}.zip
-          generate_release_notes: true
-
-      - name: Extract timing closure failures
-        if: always()
-        run: scripts/extract_timing_failures.sh projects/output_files/ap_core.sta.summary timing.txt
-
-      - name: Upload timing report
-        if: always()
+      - name: Upload packaged tree
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: timing
-          path: timing.txt
-
-      - name: Check custom STA reports
-        if: always()
-        run: |
-          echo "=== Custom STA reports ==="
-          ls -la build_output/reports/ 2>/dev/null || echo "No custom STA reports directory found"
-          echo "=== Output files ==="
-          ls -la projects/output_files/*.rpt projects/output_files/*.summary 2>/dev/null || true
-
-      - name: Upload reports
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports
+          name: pocket-tree
           path: |
-            projects/output_files/ap_core.fit.summary
-            projects/output_files/ap_core.fit.rpt
-            projects/output_files/ap_core.sta.summary
-            projects/output_files/ap_core.sta.rpt
-            projects/output_files/ap_core.flow.rpt
-            build_output/reports/
+            pkg/pocket/Cores
+            pkg/pocket/Platforms
+            pkg/pocket/Assets
+
+      - name: Package build zips
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          SAFE_BRANCH=$(printf '%s' "$GITHUB_REF_NAME" | sed 's#[^A-Za-z0-9._-]#-#g')
+          scripts/package_release.sh "${{ steps.matrix.outputs.version }}" "$SAFE_BRANCH"
+          echo "PACKAGE_BRANCH=${SAFE_BRANCH}" >> "$GITHUB_ENV"
+
+      - name: Upload package zips
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: package-${{ env.PACKAGE_BRANCH }}
+          path: openfpga-*_${{ env.PACKAGE_BRANCH }}_${{ steps.matrix.outputs.version }}.zip

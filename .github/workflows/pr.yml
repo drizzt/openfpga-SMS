@@ -1,0 +1,83 @@
+name: PR
+
+# Builds every PR into the default branch and gates it on timing.
+#
+# The artifacts are uploaded unpacked, so each download is one clean zip in
+# SD-card layout rather than a zip-of-zips. The gate job is separate from the
+# build so those artifacts still appear when timing fails.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master, main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+
+  package:
+    # Split from build so a single compile fans out to every platform.
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    strategy:
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
+    steps:
+      - name: Download packaged tree
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pocket-tree
+          path: pkg/pocket
+
+      - name: Upload ${{ matrix.short }} test build
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openfpga-${{ matrix.short }}_pr${{ github.event.pull_request.number }}
+          path: |
+            pkg/pocket/Cores/${{ matrix.pkgdir }}
+            pkg/pocket/Platforms/${{ matrix.pid }}.json
+            pkg/pocket/Assets/${{ matrix.pid }}
+
+  gate:
+    # Blocking timing check: red + PR comment on any negative slack, or, once a
+    # timing_baseline.txt exists, on a regression against it. See
+    # scripts/check_timing_regression.sh.
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Download timing report
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: timing
+
+      - name: Gate on timing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          # check_timing_regression.sh writes exactly this line when timing passes.
+          if grep -qx "TIMING OK" timing.txt; then
+            echo "Timing OK."
+            exit 0
+          fi
+          {
+            echo "### Timing check failed"
+            echo ""
+            echo '```'
+            cat timing.txt
+            echo '```'
+          } > comment.md
+          gh pr comment "$PR" --repo "$REPO" --body-file comment.md
+          echo "::error::Timing check failed; blocking the PR." >&2
+          exit 1

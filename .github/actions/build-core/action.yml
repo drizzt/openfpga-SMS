@@ -1,0 +1,54 @@
+name: Build core
+description: >-
+  Check package consistency, assemble the loader (if the core has one), compile
+  the Quartus project, reverse the bitstream and upload the timing and Quartus
+  reports.
+
+# A composite action rather than a reusable workflow, so the release job can run
+# these steps inline in a checkout it already owns and commits back to.
+
+runs:
+  using: composite
+  steps:
+    # Seconds, and independent of everything below: fail before the slow parts.
+    - name: Check package consistency
+      shell: bash
+      run: scripts/check_packages.sh
+
+    # No-op for cores without a loader program (no support/loader.asm).
+    - name: Build loader
+      shell: bash
+      run: scripts/build_loader.sh
+
+    # build.sh owns the Quartus image pin and calls deploy_bitstream.sh itself.
+    - name: Compile
+      shell: bash
+      run: scripts/build.sh
+
+    # Always: a failed compile still leaves an .sta.summary worth reporting, and
+    # the timing gate needs the file to exist either way. `|| true` because the
+    # gate job owns the verdict; this step only has to produce the report.
+    - name: Check timing
+      if: always()
+      shell: bash
+      run: scripts/check_timing_regression.sh projects/output_files/sms_pocket.sta.summary timing_baseline.txt timing.txt || true
+
+    - name: Upload timing report
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: timing
+        path: timing.txt
+
+    - name: Upload reports
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: reports
+        path: |
+          projects/output_files/sms_pocket.fit.summary
+          projects/output_files/sms_pocket.fit.rpt
+          projects/output_files/sms_pocket.sta.summary
+          projects/output_files/sms_pocket.sta.rpt
+          projects/output_files/sms_pocket.flow.rpt
+          build_output/reports/
