@@ -1084,6 +1084,10 @@ wire  [55:0] ss_psg_out, ss_psg_in;
 wire         ss_psg_set;
 wire  [63:0] ss_mapper_out, ss_mapper_in;
 wire         ss_mapper_set;
+wire  [31:0] ss_io_out, ss_io_in;
+wire         ss_io_set;
+wire  [21:0] ss_video_state_out, ss_video_state_in;
+wire         ss_video_state_set;
 wire  [13:0] ss_wram_A, ss_wram_WA;
 wire   [7:0] ss_wram_WD;
 wire         ss_wram_WE;
@@ -1239,11 +1243,15 @@ wire        smode_M1, smode_M2, smode_M3;
 wire        HS, VS, HBlank, VBlank;
 wire [15:0] audio_l, audio_r;
 
-// ce inputs gated by ss_freeze exactly as MiSTer SMS.sv does: pauses the
-// emulated machine during a state save/load; the video instance below and
-// the sdram clkref keep their ungated ce's so timing keeps running.
+// ss_freeze and the gated ce inputs exactly as MiSTer SMS.sv does: pauses the
+// emulated machine during a state save/load. The ce gating alone is not enough,
+// system.vhd holds ~18 ss_freeze guards on paths that are not ce-qualified
+// (concurrent write enables, mapper bank registers, the mapper detect counter).
+// The video instance below and the sdram clkref keep their ungated ce's so
+// timing keeps running.
 system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .clk_sys    ( clk_sys ),
+    .ss_freeze  ( ss_freeze ),
     .ce_cpu     ( ce_cpu & ~ss_freeze ),
     .ce_vdp     ( ce_vdp & ~ss_freeze ),
     .ce_pix     ( ce_pix & ~ss_freeze ),
@@ -1390,6 +1398,9 @@ system #(.MAX_SPPL(63), .BASE_DIR("../rtl/upstream/")) system (
     .mapper_out  ( ss_mapper_out ),
     .mapper_in   ( ss_mapper_in ),
     .mapper_set  ( ss_mapper_set ),
+    .io_state_out( ss_io_out ),
+    .io_state_in ( ss_io_in ),
+    .io_state_set( ss_io_set ),
     .z80_m1_n    ( ss_z80_m1_n ),
     .z80_mreq_n  ( ss_z80_mreq_n ),
     .z80_iset    ( ss_z80_iset )
@@ -1407,6 +1418,9 @@ video video (
     .smode_M2   ( smode_M2 ),
     .smode_M3   ( smode_M3 ),
     .smode_M4   ( 1'b0 ),
+    .video_state_out( ss_video_state_out ),
+    .video_state_in ( ss_video_state_in ),
+    .video_state_set( 1'b0 ),   // MiSTer ties this off too: raster is realigned by waiting, not restored
     .x          ( vx ),
     .y          ( vy ),
     .hsync      ( HS ),
@@ -1433,6 +1447,7 @@ savestates savestates_inst (
     .ss_game_id      ( ss_game_id ),       // ROM signature: reject cross-ROM loads
     .ss_freeze       ( ss_freeze ),
     .vblank          ( VBlank ),
+    .x               ( vx ),
     // Z80
     .z80_reg         ( ss_z80_reg ),
     .z80_dir         ( ss_z80_dir ),
@@ -1442,6 +1457,8 @@ savestates savestates_inst (
     .z80_iset        ( ss_z80_iset ),
     .cpu_ce          ( ce_cpu ),        // raw, ungated by ss_freeze
     .vdp_ce          ( ce_vdp ),
+    .pix_ce          ( ce_pix ),
+    .sp_ce           ( ce_sp ),
     // VDP registers
     .vdp_regs        ( ss_vdp_regs ),
     .vdp_regs_in     ( ss_vdp_regs_in ),
@@ -1466,6 +1483,12 @@ savestates savestates_inst (
     .mapper_out      ( ss_mapper_out ),
     .mapper_in       ( ss_mapper_in ),
     .mapper_set      ( ss_mapper_set ),
+    .io_out          ( ss_io_out ),
+    .io_in           ( ss_io_in ),
+    .io_set          ( ss_io_set ),
+    .video_state_out ( ss_video_state_out ),
+    .video_state_in  ( ss_video_state_in ),
+    .video_state_set ( ss_video_state_set ),
     // WRAM DMA (ram_inst port, muxed in Section 8)
     .wram_A          ( ss_wram_A ),
     .wram_D          ( ram_q ),
