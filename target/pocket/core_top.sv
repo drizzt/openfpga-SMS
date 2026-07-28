@@ -1587,7 +1587,7 @@ audio_mixer #(
     .DW     ( 16 ),
     .STEREO ( 1 )
 ) audio_out (
-    .clk_74b    ( clk_74a ),
+    .clk_74b    ( clk_74b ),
     .clk_audio  ( clk_sys ),
     .reset      ( reset_active ),
     .vol_att    ( 4'd0 ),
