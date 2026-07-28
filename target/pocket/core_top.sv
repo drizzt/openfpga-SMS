@@ -1125,7 +1125,7 @@ module core_top (
   wire ss_save, ss_load;
   wire ss_freeze;
 
-  wire [211:0] ss_z80_reg, ss_z80_dir;
+  wire [229:0] ss_z80_reg, ss_z80_dir;
   wire ss_z80_set;
   wire ss_z80_m1_n, ss_z80_mreq_n;
   wire [1:0] ss_z80_iset;
@@ -1150,7 +1150,7 @@ module core_top (
   wire [13:0] ss_wram_A, ss_wram_WA;
   wire [7:0] ss_wram_WD;
   wire       ss_wram_WE;
-  wire [12:0] ss_nvram_A, ss_nvram_WA;
+  wire [14:0] ss_nvram_A, ss_nvram_WA;
   wire [ 7:0] ss_nvram_WD;
   wire        ss_nvram_WE;
 
@@ -1217,7 +1217,9 @@ module core_top (
   );
 
   // Port A: system core access, taken over by savestates during ss_freeze
-  // (Dahjee A expansion RAM snapshot, lower 8 KB only, mirrors MiSTer SMS.sv).
+  // (cartridge SRAM snapshot, up to the full 32 KB: savestates.sv sizes the DMA
+  // from the mapper snapshot, 8/16/32 KB, so the address must be the full
+  // NVRAM_AW bits as in MiSTer SMS.sv).
   // Port B: save load (boot) / unload (writeback).
   // The Pocket OS sequences load and unload, so a simple address mux suffices.
   localparam NVRAM_AW = 15;  // 2^15 = 32 KB, SAVE_SIZE
@@ -1226,7 +1228,7 @@ module core_top (
       .widthad_a(NVRAM_AW)
   ) nvram_inst (
       .clock_a  (clk_sys),
-      .address_a(ss_freeze ? (ss_nvram_WE ? {2'b00, ss_nvram_WA} : {2'b00, ss_nvram_A}) : nvram_a),
+      .address_a(ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : ss_nvram_A) : nvram_a),
       .wren_a   (ss_freeze ? ss_nvram_WE : nvram_we),
       .data_a   (ss_freeze ? ss_nvram_WD : nvram_d),
       .q_a      (nvram_q),
@@ -1523,6 +1525,10 @@ module core_top (
       .ss_bios_mode    (bios_en & ~dbr),       // MiSTer: bios_en & ~dbr
       .ss_game_id      (ss_game_id),           // ROM signature: reject cross-ROM loads
       .ss_freeze       (ss_freeze),
+      // System E is tied off in this port, so the engine keeps the 64 KB layout
+      // and skips the VDP2/PSG2/VRAM2 regions. Wired explicitly rather than left
+      // to Quartus' implicit GND, which it only reports as a connectivity warning.
+      .systeme         (1'b0),
       .vblank          (VBlank),
       .x               (vx),
       // Z80
@@ -1572,7 +1578,7 @@ module core_top (
       .wram_WE         (ss_wram_WE),
       .wram_WA         (ss_wram_WA),
       .wram_WD         (ss_wram_WD),
-      // NVRAM DMA (Dahjee A expansion RAM, nvram_inst port A, muxed in Section 7)
+      // NVRAM DMA (cartridge SRAM, nvram_inst port A, muxed in Section 7)
       .nvram_A         (ss_nvram_A),
       .nvram_D         (nvram_q),
       .nvram_WE        (ss_nvram_WE),
