@@ -421,7 +421,7 @@ module core_top (
     // triggered just before a download, is safe by construction: relock
     // completes in well under a millisecond, while the Chip32 still has
     // ms-scale file-open work before the first cart byte arrives.)
-    if (pal != pal_r && dl_quiet == 0) begin
+    if (pal != pal_r && ~downloading && ~dl_active_s) begin
       state <= 1;
       pal_r <= pal;
     end
@@ -429,13 +429,10 @@ module core_top (
 
   // The Chip32 downloading=0 write can land before the data_loader FIFO tail
   // drains to SDRAM (documented invariant, see Section 5), so the flag alone
-  // is not quiescence: hold the reconfig off for ~1.8 ms past the falling
-  // edge, far beyond any FIFO tail at clkref pacing.
-  reg [16:0] dl_quiet = 0;
-  always @(posedge clk_74a) begin
-    if (downloading) dl_quiet <= 17'h1FFFF;
-    else if (dl_quiet != 0) dl_quiet <= dl_quiet - 1'd1;
-  end
+  // is not quiescence. dl_active (Section 5) is the real condition; the raw
+  // downloading reg above covers the same-domain start edge, before the flag
+  // has crossed to clk_sys and back.
+  wire dl_active_s;
 
   // SDRAM clock pin: forward the 180-degree PLL output through a DDR output
   // cell (equivalent to MiSTer's inverted-clock altddio_out)
@@ -659,16 +656,16 @@ module core_top (
   always @(*) begin
     casex (bridge_addr)
       32'h2xxxxxxx: begin
-        bridge_rd_data <= save_read_bridge_data;
+        bridge_rd_data = save_read_bridge_data;
       end
       32'h4xxxxxxx: begin
-        bridge_rd_data <= ss_bridge_rd_data;
+        bridge_rd_data = ss_bridge_rd_data;
       end
       32'hF8xxxxxx: begin
-        bridge_rd_data <= cmd_bridge_rd_data;
+        bridge_rd_data = cmd_bridge_rd_data;
       end
       default: begin
-        bridge_rd_data <= 0;
+        bridge_rd_data = 0;
       end
     endcase
   end
@@ -846,7 +843,7 @@ module core_top (
   //
   //  * pal_not_ready holds the core in reset until the PLL is actually running at
   //    the REQUESTED tv system (pal_cfg_s == pal_s) with no reconfig in flight
-  //    (pal_busy_s). One term covers the whole pal path: the ~1.8 ms dl_quiet
+  //    (pal_busy_s). One term covers the whole pal path: the dl_active
   //    deferral, the reconfig + relock, and an unbounded-late OS replay of the
   //    persisted setting: each just becomes one clean, held reboot. A live
   //    NTSC<->PAL toggle is thus a clean atomic reboot, never a mid-frame flip.
@@ -948,10 +945,15 @@ module core_top (
   // the load path is only cleared at the START of a download and keeps
   // draining after the flag falls.
   reg prev_downloading = 0;
-  always @(posedge clk_sys) prev_downloading <= downloading_s;
+  always @(posedge clk_sys) begin
+    prev_downloading <= downloading_s;
+  end
   wire        rom_dl_start = downloading_s & ~prev_downloading;
 
-  // Small skid FIFO (4 deep) between the paced loader and the byte FSM
+  // Small skid FIFO (4 deep) between the paced loader and the byte FSM.
+  // It stands in for MiSTer's ioctl_wait: APF cannot be back-pressured, so the
+  // loader emits a word every 24 cycles whatever the SDRAM controller is doing,
+  // and this absorbs the per-word drain jitter.
   reg  [40:0] rom_fifo                                          [3:0];  // {addr[24:0], data[15:0]}
   reg  [ 2:0] rom_fifo_wptr = 0;
   reg  [ 2:0] rom_fifo_rptr = 0;
@@ -1028,6 +1030,32 @@ module core_top (
     end
   end
 
+  // The whole load path is drained: skid empty, FSM idle, no write outstanding
+  // at the SDRAM controller.
+  wire load_drained = ~downloading_s & rom_fifo_empty
+                    & (rom_ld_state == ROM_IDLE) & (rom_wr == sd_wrack);
+
+  // Latched rather than used directly, so it makes exactly one transition each
+  // way per download. data_loader can still emit a word after downloading_s
+  // falls, and a combinational version would drop and re-raise: letting clkref
+  // step back from ce_cpu to ce_pix mid-transaction shortens the interval
+  // between clkref rising edges and truncates an SDRAM cycle.
+  reg dl_active = 0;
+  always @(posedge clk_sys) begin
+    if (rom_dl_start) begin
+      dl_active <= 1'b1;
+    end else if (load_drained) begin
+      dl_active <= 1'b0;
+    end
+  end
+
+  // Quiescence for the PLL reconfig guard in Section 1.
+  synch_3 dl_active_sync (
+      dl_active,
+      dl_active_s,
+      clk_74a
+  );
+
   // Cartridge size masks, 512-byte header detection and Ys (Japan) quirk
   // (replicates MiSTer SMS.sv download tracking)
   reg [21:0] cart_mask = 0, cart_mask512 = 0;
@@ -1095,7 +1123,11 @@ module core_top (
 
       .init  (~pll_core_locked),
       .clk   (clk_sys),
-      .clkref(downloading_s ? ce_pix : ce_cpu),
+      // Faster slot pacing while the load path is busy, not merely while the
+      // downloading flag is set: the flag falls with words still in flight, and
+      // dropping to ce_cpu there would slow the drain below the loader's fixed
+      // 24-cycle output rate exactly when the skid FIFO is at its deepest.
+      .clkref(dl_active ? ce_pix : ce_cpu),
 
       .waddr (romwr_a),
       .din   (romwr_d),
@@ -1641,6 +1673,10 @@ module core_top (
   assign video_rgb_clock    = clk_vid;
   assign video_rgb_clock_90 = clk_vid_90;
 
+  // reset is raw ~pll_core_locked, not the pll_ever_locked / reset_active the
+  // rest of the core uses: the output registers should blank while the PAL
+  // reconfig relocks, since clk_vid is glitching then, and they must not stay
+  // blanked for the whole held reboot afterwards.
   video_sms video_out (
       .clk_sys(clk_sys),
       .clk_vid(clk_vid),
