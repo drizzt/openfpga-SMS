@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# Guard the three-package invariants: shared binaries must be byte-identical,
-# JSONs without intentional per-platform divergences identical, and core.json
-# version/date in lockstep. (core/data/video/input.json legitimately differ
-# per platform and are not diffed here; interact.json is checked modulo its
-# intentional per-platform ids below.)
+# Guard the invariants that must hold across every pkg/pocket/Cores/* package.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -12,9 +8,9 @@ cd "$PROJECT_DIR"
 
 fail=0
 
-# bitstream.rbf_r and loader.bin are one shared artifact fanned out.
-# They are build products (gitignored), so absence everywhere is fine
-# (fresh checkout); present in only some packages is drift.
+# bitstream.rbf_r and loader.bin are one shared artifact fanned out. They are
+# build products, so absence everywhere is fine (fresh checkout); present in
+# only some packages is drift.
 for bin in bitstream.rbf_r loader.bin; do
   # `|| true`: with set -e + pipefail, a glob that matches nothing makes ls
   # exit non-zero and aborts the script before the "absent everywhere" guard
@@ -42,16 +38,13 @@ for json in audio.json variants.json info.txt icon.bin; do
   fi
 done
 
-# interact.json: the ONLY intentional divergences are platform-specific
-# entries (FM Sound id 25 and TV System id 35 missing on GG; GG Resolution
-# and Game Gear Link reuse ids 35/40 on GG where TV System/Blank Border are
-# absent; BIOS id 45 SMS-only, GG/SG never run the boot ROM; Mapper id 50
-# on SMS/SG-1000 only, GG is Sega-mapper only; Legacy Palette id 55 SMS-only,
-# SG-1000 already forces the TMS9918 palette and GG legacy modes are moot).
-# After dropping those ids, the remaining entries must be identical;
-# anything else is drift.
-# Single source for the exempt id set so the filter and the drift message
-# below cannot desync.
+# interact.json: packages sharing one bitstream are expected to have identical
+# menus except for genuinely platform-specific entries (an option one system has
+# and another does not, or an id reused for a different option). List those ids
+# here; after dropping them the rest must be identical.
+#   25 FM Sound, 45 BIOS, 55 Legacy Palette: SMS only
+#   35 TV System / GG Resolution and 40 Blank Border / Game Gear Link: reused on GG
+#   50 Mapper: SMS and SG-1000 only
 intentional_ids='[25,35,40,45,50,55]'
 interact_hash() {
   jq -S --argjson skip "$intentional_ids" \

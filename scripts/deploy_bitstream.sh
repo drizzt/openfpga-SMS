@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Reverse the Quartus .rbf for the Pocket and fan it out to every core
-# package (the per-platform packages share one bitstream).
 # Usage: deploy_bitstream.sh [path/to/sms_pocket.rbf]
+#
+# Reverses the Quartus .rbf for the Pocket and fans it out to every core package.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"

@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
-# Bump the release version in lockstep across every per-platform core.json and
-# gateware.json, and print the new version to stdout.
-#
 # Usage: bump_version.sh <patch|minor|major>
 #
-# The three sibling cores (drizzt.SMS / drizzt.GG / drizzt.SG-1000) release
-# together, so their versions are kept identical; gateware.json carries the same
-# number for the gateman manifest. The current version is read from the first
-# pkg/pocket/Cores/*/core.json (they are all in sync).
+# Bumps every core.json and gateware.json in lockstep, since sibling packages
+# share one bitstream and release together, and prints the new version.
 set -euo pipefail
 
 BUMP="${1:?usage: bump_version.sh <patch|minor|major>}"

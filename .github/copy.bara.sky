@@ -24,8 +24,8 @@ core.workflow(
     # Pushed straight to the vendor branch, never to the default branch. The
     # branch holds untouched upstream and must outlive every merge: it is the
     # merge base that lets git carry the port's edits across syncs, and Copybara
-    # reads its own baseline from the GitOrigin-RevId trailer there. release.yml
-    # keys the merge-triggered release off the same branch name.
+    # reads its own baseline from the GitOrigin-RevId trailer there.
+    # Same name in release.yml.
     destination = git.destination(
         url = downstream_url,
         fetch = "vendor/upstream",

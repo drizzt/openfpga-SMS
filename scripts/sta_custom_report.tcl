@@ -1,9 +1,7 @@
-# Custom STA report script for detailed timing path analysis.
+# Usage: quartus_sta -t scripts/sta_custom_report.tcl
 #
-# Run via:  quartus_sta -t scripts/sta_custom_report.tcl
-#
-# Generates setup/hold timing path reports and clock Fmax summary
-# to build_output/reports/ for CI artifact collection.
+# Writes setup/hold path reports and the clock Fmax summary to
+# build_output/reports/ for CI to collect.
 
 # Save working directory BEFORE project_open changes it
 set base_dir [pwd]
@@ -56,7 +54,6 @@ post_message "Generating 0C setup timing paths report..."
 set_operating_conditions 8_slow_1100mv_0c
 report_timing -setup -npaths 120 -detail full_path -file $out_setup_0c
 
-# Verify outputs
 foreach f [list $out_setup $out_setup_0c $out_hold $out_sum $out_sdram_wr $out_sdram_rd] {
     if {[file exists $f]} {
         post_message "  OK: $f ([file size $f] bytes)"
@@ -65,7 +62,6 @@ foreach f [list $out_setup $out_setup_0c $out_hold $out_sum $out_sdram_wr $out_s
     }
 }
 
-# Cleanup
 delete_timing_netlist
 project_close
 

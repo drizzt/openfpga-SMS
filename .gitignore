@@ -3,10 +3,13 @@ projects/db/
 projects/incremental_db/
 projects/output_files/
 projects/qdb/
+projects/*.qws
+projects/*.rpt
+projects/*.summary
+projects/*.smsg
 projects/c5_pin_model_dump.txt
+projects/*.smp_dump.txt
 projects/*assignment_defaults.qdf
-*.qws
-*.rpt.bak
 
 # Generated bitstream / loader / package binaries
 build_output/
@@ -19,6 +22,10 @@ platform/pocket/build_id.v
 timing.txt
 
 # Editor / OS
+*.bak
 *~
 .DS_Store
+projects/quartus.pid
+projects/map.log
+build.log
 openfpga-*.zip

@@ -58,6 +58,13 @@ jobs:
           # Single source for the upstream repo and its release path: gateware.json.
           UPSTREAM=$(jq -r '.upstream.repository' gateware.json)
           RELEASE_PATH=$(jq -r '.upstream.release_path // "releases/"' gateware.json)
+          case "$UPSTREAM" in
+            '<'*|null|'')
+              echo "gateware.json .upstream.repository is not set yet."
+              echo "skip=1" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
           # Only upstream commits that update the release path count as a
           # release (MiSTer cores commit the built .rbf there). Sync targets the
           # newest such commit, so unreleased WIP that touches only rtl/ is not
@@ -72,6 +79,7 @@ jobs:
           echo "Latest upstream release commit: $TARGET"
 
       - name: Copybara
+        if: steps.rel.outputs.skip != '1'
         env:
           LAST_REV: ${{ github.event.inputs.last_rev }}
           TARGET: ${{ steps.rel.outputs.target }}
@@ -99,6 +107,7 @@ jobs:
           exit $EXIT_CODE
 
       - name: Open sync PR
+        if: steps.rel.outputs.skip != '1'
         env:
           GH_TOKEN: ${{ secrets.CUSTOM_GH_TOKEN }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
