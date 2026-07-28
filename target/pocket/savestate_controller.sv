@@ -5,16 +5,22 @@
 // blob exchanged over the bridge at 0x4xxxxxxx) to MiSTer's pure-hardware
 // savestates.sv engine, which expects a MiSTer DDRAM-style 64-bit bus.
 //
-// The whole state slot is 64 KB (savestates.sv slot 0), so instead of the
+// savestates.sv reserves 96 KB per slot (0x3000 qwords since upstream #192),
+// but only the first 64 KB is reachable here: every region past qword 0x2000
+// is System-E only and core_top.sv ties .systeme(1'b0). So instead of the
 // SDRAM staging the GBA reference port needs for its ~389 KB state, the
-// slot lives in a dual-clock BRAM buffer:
+// slot lives in a 64 KB dual-clock BRAM buffer:
 //
 //   savestates.sv (clk_sys) ←DDRAM shim→ [64K BRAM] ←→ bridge (clk_74a)
 //
+// The shim truncates to DDRAM_ADDR[12:0]. If upstream ever puts a non-System-E
+// region past qword 0x2000, it aliases silently onto VRAM: widen the buffer
+// and the shim, and savestate_size in core_top.sv with it.
+//
 // savestates.sv keeps the MiSTer slot base address (29'h07C00000); only
 // the word-offset bits [12:0] address the buffer, the base is ignored.
-// Slot 0 / cart mode only (ss_slot and ss_bios_mode are tied off in
-// core_top.sv), so DDRAM_ADDR[28:13] never varies.
+// Slot 0 only (ss_slot is tied to 2'd0 in core_top.sv), so DDRAM_ADDR[28:13]
+// never varies.
 //
 
 module savestate_controller (
