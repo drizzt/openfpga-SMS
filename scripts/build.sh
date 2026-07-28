@@ -47,4 +47,4 @@ echo ""
   "$PROJECT_DIR/build_output/reports/sms_pocket.sta.clock_summary.rpt"
 
 echo "=== Done! ==="
-echo "Bitstream copied to: pkg/Cores/*/bitstream.rbf_r"
+echo "Bitstream copied to: pkg/pocket/Cores/*/bitstream.rbf_r"

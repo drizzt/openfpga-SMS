@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assemble support/loader.asm into pkg/Cores/*/loader.bin.
+# Assemble support/loader.asm into pkg/pocket/Cores/*/loader.bin.
 #
 # Uses the official bass assembler (ARM9/bass, devel branch) with Analogue's
 # chip32 architecture file (open-fpga/bass-chip32). bass expects the
@@ -28,7 +28,7 @@ fi
 cd "$PROJECT_DIR/support"
 "$BASS_BIN" loader.asm
 # the per-platform core packages share one loader
-for d in "$PROJECT_DIR"/pkg/Cores/*/; do
+for d in "$PROJECT_DIR"/pkg/pocket/Cores/*/; do
     cp -f loader.bin "$d/loader.bin"
     echo "loader.bin -> ${d#"$PROJECT_DIR/"}loader.bin"
 done

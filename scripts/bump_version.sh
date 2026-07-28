@@ -7,7 +7,7 @@
 # The three sibling cores (drizzt.SMS / drizzt.GG / drizzt.SG-1000) release
 # together, so their versions are kept identical; gateware.json carries the same
 # number for the gateman manifest. The current version is read from the first
-# pkg/Cores/*/core.json (they are all in sync).
+# pkg/pocket/Cores/*/core.json (they are all in sync).
 set -euo pipefail
 
 BUMP="${1:?usage: bump_version.sh <patch|minor|major>}"
@@ -19,7 +19,7 @@ esac
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-set -- "$PROJECT_DIR"/pkg/Cores/*/core.json
+set -- "$PROJECT_DIR"/pkg/pocket/Cores/*/core.json
 CURRENT="$(jq -r '.core.metadata.version' "$1")"
 IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
@@ -32,7 +32,7 @@ esac
 NEW="${MAJOR}.${MINOR}.${PATCH}"
 DATE="$(date -u +%Y-%m-%d)"
 
-for f in "$PROJECT_DIR"/pkg/Cores/*/core.json; do
+for f in "$PROJECT_DIR"/pkg/pocket/Cores/*/core.json; do
   jq --arg v "$NEW" --arg d "$DATE" \
     '.core.metadata.version = $v | .core.metadata.date_release = $d' \
     "$f" > "$f.tmp" && mv "$f.tmp" "$f"

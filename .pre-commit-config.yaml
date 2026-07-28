@@ -1,17 +1,17 @@
 # Pre-commit hooks. Activate per clone with:  pre-commit install
 # Run on demand with:  pre-commit run --all-files
 #
-# Scope note: this repo vendors the MiSTer SMS core (rtl/upstream/, kept a
-# faithful mirror via Copybara; see .github/copy.bara.sky) and APF framework
-# files (platform/pocket/) that must stay byte-unmodified. Tier 1 here is
-# validate-only (no hook rewrites files), so no excludes are needed yet. Add
-# excludes for rtl/upstream/ and platform/pocket/ before introducing any
-# file-modifying hook (whitespace, end-of-file, formatters).
+# Scope note: this repo vendors the MiSTer SMS core (rtl/upstream/, synced from
+# the vendor/upstream branch; see .github/copy.bara.sky) and APF framework files
+# (platform/pocket/) that must stay byte-unmodified. Tier 1 here is validate-only
+# (no hook rewrites files), so no excludes are needed yet. Add excludes for
+# rtl/upstream/ and platform/pocket/ before introducing any file-modifying hook
+# (whitespace, end-of-file, formatters).
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-      - id: check-json              # validate every *.json (pkg/Cores, Platforms)
+      - id: check-json              # validate every *.json (pkg/pocket/Cores, Platforms)
       - id: check-yaml              # validate .github/workflows/*.yml
       - id: check-merge-conflict
       - id: detect-private-key

@@ -5,7 +5,7 @@
 # Per-platform zips keep Pupdate installs isolated: the openFPGA inventory
 # maps each core to the single-core zip it was found in, so installing one
 # platform no longer drops all three Cores/ folders on the SD card. The
-# pkg/ tree itself is untouched (all three packages still share one
+# pkg/pocket/ tree itself is untouched (all three packages still share one
 # bitstream/loader); this only subsets the tree at packaging time.
 #
 # Usage: package_release.sh <version> [infix]
@@ -20,8 +20,8 @@ INFIX="${2:-}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# The package dir list is never hardcoded: glob pkg/Cores/*/ (project ethos).
-for core_json in "$PROJECT_DIR"/pkg/Cores/*/core.json; do
+# The package dir list is never hardcoded: glob pkg/pocket/Cores/*/ (project ethos).
+for core_json in "$PROJECT_DIR"/pkg/pocket/Cores/*/core.json; do
   pkgdir="$(basename "$(dirname "$core_json")")"               # drizzt.GG
   shortname="$(jq -r '.core.metadata.shortname' "$core_json")" # GG
   pid="$(jq -r '.core.metadata.platform_ids[0]' "$core_json")" # gg
@@ -34,19 +34,19 @@ for core_json in "$PROJECT_DIR"/pkg/Cores/*/core.json; do
       '' | null) echo "$pkgdir: core.json .core.metadata.$field is missing" >&2; exit 1 ;;
     esac
   done
-  [ -f "$PROJECT_DIR/pkg/Platforms/${pid}.json" ] || {
-    echo "$pkgdir: missing pkg/Platforms/${pid}.json for platform '$pid'" >&2; exit 1; }
-  [ -d "$PROJECT_DIR/pkg/Assets/${pid}" ] || {
-    echo "$pkgdir: missing pkg/Assets/${pid}/ for platform '$pid'" >&2; exit 1; }
+  [ -f "$PROJECT_DIR/pkg/pocket/Platforms/${pid}.json" ] || {
+    echo "$pkgdir: missing pkg/pocket/Platforms/${pid}.json for platform '$pid'" >&2; exit 1; }
+  [ -d "$PROJECT_DIR/pkg/pocket/Assets/${pid}" ] || {
+    echo "$pkgdir: missing pkg/pocket/Assets/${pid}/ for platform '$pid'" >&2; exit 1; }
 
   # ${INFIX:+_$INFIX} adds the _<infix> segment only when INFIX is non-empty.
   zip_name="openfpga-${shortname}${INFIX:+_$INFIX}_${VERSION}.zip"
   zip_path="$PROJECT_DIR/$zip_name"
 
   rm -f "$zip_path"
-  # Run from pkg/ so the archive's paths are SD-card-root relative.
+  # Run from pkg/pocket/ so the archive's paths are SD-card-root relative.
   # -x '*/.gitkeep' drops the empty-dir marker but keeps Assets/<id>/common/.
-  ( cd "$PROJECT_DIR/pkg" && \
+  ( cd "$PROJECT_DIR/pkg/pocket" && \
     zip -r "$zip_path" \
       "Cores/${pkgdir}" "Platforms/${pid}.json" "Assets/${pid}" \
       -x '*/.gitkeep' ) >&2

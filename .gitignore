@@ -1,15 +1,24 @@
-# Build products
-build_output/
-pkg/Cores/*/bitstream.rbf_r
-pkg/Cores/*/loader.bin
-platform/pocket/build_id.mif
-platform/pocket/build_id.v
-
-# Quartus
+# Quartus build artifacts
 projects/db/
 projects/incremental_db/
 projects/output_files/
+projects/qdb/
 projects/c5_pin_model_dump.txt
 projects/*assignment_defaults.qdf
 *.qws
 *.rpt.bak
+
+# Generated bitstream / loader / package binaries
+build_output/
+pkg/pocket/Cores/*/bitstream.rbf_r
+pkg/pocket/Cores/*/loader.bin
+# regenerated pre-flow by platform/pocket/build_id_gen.tcl
+platform/pocket/build_id.mif
+platform/pocket/build_id.v
+# written by scripts/check_timing_regression.sh
+timing.txt
+
+# Editor / OS
+*~
+.DS_Store
+openfpga-*.zip

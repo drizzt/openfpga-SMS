@@ -37,7 +37,7 @@ def main():
     assert len(data) == 36 * 36 * 2
     cores = sorted(glob.glob(os.path.join(PROJECT_DIR, "pkg", "Cores", "*", "")))
     if not cores:
-        sys.exit("no core packages found under pkg/Cores/")
+        sys.exit("no core packages found under pkg/pocket/Cores/")
     for d in cores:
         path = os.path.join(d, "icon.bin")
         with open(path, "wb") as f:

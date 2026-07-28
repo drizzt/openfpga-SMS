@@ -12,6 +12,19 @@
   "scripts": {
     "build:pocket": "quartus_sh -t generate.tcl"
   },
+  "release": {
+    "folders": {
+      "output_folder": "build_output",
+      "pkg_folder": "pkg/pocket",
+      "stage_folder": "staging",
+      "release_folder": "release"
+    },
+    "target": {
+      "pocket": {
+        "release_file": "{author}.{core}_{version}-{date}"
+      }
+    }
+  },
   "platforms": {
     "pocket": "1.3.0"
   },
