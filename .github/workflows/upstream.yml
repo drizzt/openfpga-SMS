@@ -94,7 +94,7 @@ jobs:
             -v /home/runner/.git-credentials:/root/.git-credentials \
             -e TARGET \
             -e LAST_REV \
-            ghcr.io/anipos/copybara-docker-image \
+            ghcr.io/anipos/copybara-docker-image@sha256:f73da1e601e761dc64582d2d68b316541f41ec0e47e64482364acf4d456a239c \
             --ignore-noop \
             migrate /usr/src/app/.github/copy.bara.sky default "$TARGET" \
             ${LAST_REV:+--last-rev "$LAST_REV"}
