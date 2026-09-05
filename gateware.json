@@ -3,7 +3,7 @@
   "displayName": "Sega Master System / Game Gear / SG-1000",
   "description": "Sega Master System, Game Gear and SG-1000 for the Analogue Pocket. Port of the MiSTer SMS_MiSTer core.",
   "author": "drizzt",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "license": "GPL-3.0-or-later",
   "repository": "https://github.com/drizzt/openfpga-SMS",
   "keywords": [
