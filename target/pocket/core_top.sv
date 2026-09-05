@@ -1175,6 +1175,8 @@ module core_top (
   wire ss_psg_set;
   wire [63:0] ss_mapper_out, ss_mapper_in;
   wire ss_mapper_set;
+  wire [63:0] ss_eeprom_out, ss_eeprom_in;
+  wire ss_eeprom_set;
   wire [31:0] ss_io_out, ss_io_in;
   wire ss_io_set;
   wire [21:0] ss_video_state_out, ss_video_state_in;
@@ -1256,8 +1258,12 @@ module core_top (
   // The Pocket OS sequences load and unload, so a simple address mux suffices.
   localparam NVRAM_AW = 15;  // 2^15 = 32 KB, SAVE_SIZE
 
+  // A blank 93C46 EEPROM reads back 0xFF, so the BRAM powers up filled
+  // rather than zeroed for the first boot of a GG EEPROM cart, before any
+  // save file exists to load over it.
   dpram #(
-      .widthad_a(NVRAM_AW)
+      .widthad_a(NVRAM_AW),
+      .init_file("../rtl/upstream/nvram_ff.mif")
   ) nvram_inst (
       .clock_a  (clk_sys),
       .address_a(ss_freeze ? (ss_nvram_WE ? ss_nvram_WA : ss_nvram_A) : nvram_a),
@@ -1350,7 +1356,8 @@ module core_top (
   wire [ 8:0] vy;
   wire [11:0] color;
   wire        mask_column;
-  wire smode_M1, smode_M2, smode_M3;
+  wire smode_M1, smode_M2, smode_M3, smode_M4;
+  wire [ 7:0] vcounter_cpu;
   wire HS, VS, HBlank, VBlank;
   wire [15:0] audio_l, audio_r;
 
@@ -1373,6 +1380,11 @@ module core_top (
       .bios_en        (bios_en),
       .ext_bios_sel   (1'b0),
       .ext_bios_loaded(1'b0),
+      // No Game Gear BIOS dataslot in this port, so the GG boot ROM path
+      // stays disabled and its write port is held off.
+      .gg_bios_en     (1'b0),
+      .ext_gg_bios_loaded(1'b0),
+      .GG_BIOSWEN     (1'b0),
 
       .GG_EN      (1'b0),
       .GG_CODE    (129'd0),
@@ -1440,6 +1452,7 @@ module core_top (
 
       .x                    (vx),
       .y                    (vy),
+      .vcounter_cpu         (vcounter_cpu),
       .color                (color),
       // Legacy Palette OR'd in as SMS.sv does for SC-3000. Also sets sg_mode, so
       // $DE/$DF decode as SG-1000 I/O; harmless with sk1100/sc3000 tied off.
@@ -1449,6 +1462,7 @@ module core_top (
       .smode_M1             (smode_M1),
       .smode_M2             (smode_M2),
       .smode_M3             (smode_M3),
+      .smode_M4             (smode_M4),
       .ysj_quirk            (ysj_quirk),
       .pal                  (pal_s),
       .region               (region_s),
@@ -1457,6 +1471,7 @@ module core_top (
       .mapper_zemina_force  (mapper_sel_s == 3'd3),         // Korean (Zemina/Nemesis)
       .mapper_linear_force  (mapper_sel_s == 3'd4),         // linear (no mapper)
       .mapper_dahjee_a_force(mapper_sel_s == 3'd5),         // Dahjee Type A
+      .mapper_eeprom_out    (),                             // detection is internal only
       .vdp_enables          (2'b00),
       .psg_enables          (2'b00),
 
@@ -1509,6 +1524,9 @@ module core_top (
       .mapper_out  (ss_mapper_out),
       .mapper_in   (ss_mapper_in),
       .mapper_set  (ss_mapper_set),
+      .eeprom_ss_out(ss_eeprom_out),
+      .eeprom_ss_in(ss_eeprom_in),
+      .eeprom_ss_set(ss_eeprom_set),
       .io_state_out(ss_io_out),
       .io_state_in (ss_io_in),
       .io_state_set(ss_io_set),
@@ -1528,12 +1546,13 @@ module core_top (
       .smode_M1       (smode_M1),
       .smode_M2       (smode_M2),
       .smode_M3       (smode_M3),
-      .smode_M4       (1'b0),
+      .smode_M4       (smode_M4),
       .video_state_out(ss_video_state_out),
       .video_state_in (ss_video_state_in),
       .video_state_set(1'b0),                // tied off in MiSTer too: raster realigns by waiting
       .x              (vx),
       .y              (vy),
+      .vcounter_cpu   (vcounter_cpu),
       .hsync          (HS),
       .vsync          (VS),
       .hblank         (HBlank),
@@ -1598,6 +1617,10 @@ module core_top (
       .mapper_out      (ss_mapper_out),
       .mapper_in       (ss_mapper_in),
       .mapper_set      (ss_mapper_set),
+      // GG EEPROM cartridge state
+      .eeprom_out      (ss_eeprom_out),
+      .eeprom_in       (ss_eeprom_in),
+      .eeprom_set      (ss_eeprom_set),
       .io_out          (ss_io_out),
       .io_in           (ss_io_in),
       .io_set          (ss_io_set),

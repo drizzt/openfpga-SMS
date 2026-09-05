@@ -53,6 +53,10 @@ set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "upstream/cheatcodes.sv"]
 set_global_assignment -name SYSTEMVERILOG_FILE [file join $::quartus(qip_path) "upstream/savestates.sv"]
 
+# GG EEPROM cartridge (93C46)
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/eeprom_93c46.vhd"]
+set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/cart_eeprom.vhd"]
+
 # VDP / system
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/video.vhd"]
 set_global_assignment -name VHDL_FILE [file join $::quartus(qip_path) "upstream/sprom.vhd"]

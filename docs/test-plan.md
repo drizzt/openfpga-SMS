@@ -16,6 +16,8 @@ save writeback — plus general regression against MiSTer behavior.
   - **MSX/Nemesis**: Nemesis or Penguin Adventure (KR)
   - **Dahjee**: a Taiwanese SG-1000 title (e.g. Rockman/Bomberman Special
     variants)
+  - **Game Gear EEPROM**: World Series Baseball (USA) or Pro Yakyuu GG
+    League (JP) — 93C46 serial EEPROM, detected by ROM CRC32
   - **Linear/no mapper**: any 8–48 KB SG-1000 ROM (Flicky, Girl's Garden)
 - **FM title**: Phantasy Star or OutRun (SMS, JP region for FM)
 - **Battery save titles**: Phantasy Star (SMS), Shining Force Gaiden (GG)
@@ -131,6 +133,12 @@ toggle on NTSC (the power-up value), then PAL separately:
      on an 8 KB one (Dahjee / Codemasters CME). Only the 8 KB case
      exercises a non-wrapping address, so it passes either way. It is the
      control, not the test.
+26c. **Game Gear EEPROM** (World Series Baseball): with no prior `.sav`,
+     the in-game save menu must offer empty slots rather than garbage —
+     a blank 93C46 reads 0xFF, and the NVRAM BRAM is initialized to match.
+     Then save a team/season, quit, relaunch: the entry is still there.
+     Take a savestate mid-save-menu and load it back; the EEPROM shift
+     state must survive (it rides in the savestate slot at word 0x01b).
 
 ## 6. Inputs
 

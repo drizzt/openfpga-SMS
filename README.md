@@ -7,7 +7,7 @@ LLM assisted port of [MiSTer SMS core](https://github.com/MiSTer-devel/SMS_MiSTe
 ## Features
 
 - **Master System, Game Gear and SG-1000** (NTSC and PAL)
-- **Automatic mapper detection** — Sega, Codemasters, Korean, MSX/Nemesis, Dahjee, linear; same logic as MiSTer, with a manual override via the **Mapper** setting
+- **Automatic mapper detection** — Sega, Codemasters, Korean, MSX/Nemesis, Dahjee, Game Gear EEPROM, linear; same logic as MiSTer, with a manual override via the **Mapper** setting
 - **PSG + FM audio** — jt89 PSG and YM2413 (VM2413) FM
 - **Cart Saves** — 32 KB `.sav`, written back on exit
 - **Savestates / Sleep** — Analogue OS savestates and suspend/resume
